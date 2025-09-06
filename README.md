@@ -1,5 +1,4 @@
-# gulai_kambing_kakek
-
+# Aplikasi Kasir - Gulai Kambiang kakek
 A new Flutter project.
 
 ## Getting Started
