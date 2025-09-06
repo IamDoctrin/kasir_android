@@ -19,14 +19,6 @@ Aplikasi Point of Sale (POS) atau kasir berbasis Android yang dirancang khusus u
 
 ---
 
-## 📸 Tangkapan Layar
-
-| Halaman Kasir | Riwayat Transaksi | Laporan Penjualan |
-| :---: | :---: | :---: |
-| _(Screenshot halaman kasir)_ | _(Screenshot halaman riwayat)_ | _(Screenshot halaman laporan)_ |
-
----
-
 ## 🛠️ Teknologi yang Digunakan
 
 - **Framework**: [Flutter](https://flutter.dev/)
@@ -44,11 +36,11 @@ Aplikasi Point of Sale (POS) atau kasir berbasis Android yang dirancang khusus u
 1.  Pastikan Anda sudah menginstal Flutter SDK.
 2.  **Clone** repository ini:
     ```bash
-    git clone [https://github.com/username-anda/ruangkito-kasir-android.git](https://github.com/username-anda/ruangkito-kasir-android.git)
+    git clone [https://github.com/IamDoctrin/kasir_android](https://github.com/IamDoctrin/kasir_android.git)
     ```
 3.  Pindah ke direktori proyek:
     ```bash
-    cd ruangkito-kasir-android
+    cd kasir-android
     ```
 4.  Instal semua dependensi:
     ```bash
