@@ -1,7 +1,7 @@
 # Aplikasi Kasir - Gulai Kambiang Kakek
 
 <p align="center">
-  <img src="assets/images/app_logo.png" width="200">
+  <img src="assets/images/app_logo_nobg.png" width="200">
 </p>
 
 Aplikasi Point of Sale (POS) atau kasir berbasis Android yang dirancang khusus untuk operasional rumah makan. Aplikasi ini dibuat untuk berjalan secara offline pada perangkat tablet berukuran 11 inci, memastikan kelancaran transaksi bahkan tanpa koneksi internet.
