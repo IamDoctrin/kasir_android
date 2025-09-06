@@ -38,7 +38,7 @@ class _MainShellState extends State<MainShell> {
       SystemUiOverlayStyle(
         statusBarColor: Colors.grey[850]!,
         statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: Colors.grey[850]!,
+        systemNavigationBarColor: Colors.transparent,
       ),
     );
   }
