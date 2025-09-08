@@ -86,10 +86,8 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
     produk.sort((a, b) {
       final kategoriA = kategoriMap[a.kategoriId] ?? '';
       final kategoriB = kategoriMap[b.kategoriId] ?? '';
-
       final indexA = desiredCategoryOrder.indexOf(kategoriA);
       final indexB = desiredCategoryOrder.indexOf(kategoriB);
-
       final categoryComparison = indexA.compareTo(indexB);
       if (categoryComparison != 0) {
         return categoryComparison;
@@ -192,6 +190,7 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                 final int totalForReceipt = cart.grandTotal;
                 final now = DateTime.now();
                 String nomorTransaksiValue;
+
                 if (widget.editingTransactionId == null) {
                   nomorTransaksiValue = await db.transaksiDao
                       .generateNewTransactionNumber(db);
@@ -201,6 +200,7 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                   );
                   nomorTransaksiValue = existingTrx?.nomorTransaksi ?? '';
                 }
+
                 final trx = Transaksi(
                   id: widget.editingTransactionId,
                   waktuTransaksi: now,
@@ -215,6 +215,7 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                   metodePembayaran: paymentMethod,
                   nomorTransaksi: nomorTransaksiValue,
                 );
+
                 if (widget.editingTransactionId == null) {
                   final newId = await db.transaksiDao.insertTransaksi(trx);
                   if (newId == null) return;
@@ -226,6 +227,7 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                     finalTransactionId,
                   );
                 }
+
                 for (var item in itemsForReceipt) {
                   await db.detailTransaksiDao.insertDetailTransaksi(
                     DetailTransaksi(
@@ -236,8 +238,10 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                     ),
                   );
                 }
+
                 if (!currentContext.mounted) return;
                 Navigator.of(currentContext).pop();
+
                 await showDialog(
                   context: currentContext,
                   builder:
@@ -255,6 +259,7 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                         metodePembayaran: paymentMethod,
                       ),
                 );
+
                 cart.clearCart();
                 if (widget.editingTransactionId != null &&
                     currentContext.mounted) {
@@ -535,6 +540,8 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
     );
   }
 
+  // Lokasi: lib/presentation/pages/input_transaksi_page.dart
+
   Widget _buildCartSection() {
     return Consumer<CartProvider>(
       builder: (context, cart, child) {
@@ -611,7 +618,25 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   OutlinedButton(
-                    onPressed: cart.items.isEmpty ? null : _saveOpenTransaction,
+                    // --- PERUBAHAN LOGIKA DI SINI ---
+                    onPressed:
+                        cart.items.isEmpty
+                            ? null
+                            : () {
+                              if (_nomorMejaController.text.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Peringatan: Nomor Meja harus diisi!',
+                                    ),
+                                    duration: Duration(seconds: 1),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                              } else {
+                                _saveOpenTransaction();
+                              }
+                            },
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       side: BorderSide(color: Colors.brown.shade400),
@@ -632,10 +657,25 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                       backgroundColor: Colors.indigo,
                       foregroundColor: Colors.white,
                     ),
+                    // --- PERUBAHAN LOGIKA DI SINI ---
                     onPressed:
                         cart.items.isEmpty
                             ? null
-                            : () => _showCustomPaymentDialog(cart),
+                            : () {
+                              if (_nomorMejaController.text.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Peringatan: Nomor Meja harus diisi!',
+                                    ),
+                                    duration: Duration(seconds: 2),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                              } else {
+                                _showCustomPaymentDialog(cart);
+                              }
+                            },
                   ),
                 ],
               ),
