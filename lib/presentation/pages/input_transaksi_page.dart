@@ -540,8 +540,6 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
     );
   }
 
-  // Lokasi: lib/presentation/pages/input_transaksi_page.dart
-
   Widget _buildCartSection() {
     return Consumer<CartProvider>(
       builder: (context, cart, child) {
@@ -618,7 +616,6 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   OutlinedButton(
-                    // --- PERUBAHAN LOGIKA DI SINI ---
                     onPressed:
                         cart.items.isEmpty
                             ? null
@@ -657,7 +654,6 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                       backgroundColor: Colors.indigo,
                       foregroundColor: Colors.white,
                     ),
-                    // --- PERUBAHAN LOGIKA DI SINI ---
                     onPressed:
                         cart.items.isEmpty
                             ? null
