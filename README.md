@@ -36,7 +36,7 @@ Aplikasi Point of Sale (POS) atau kasir berbasis Android yang dirancang khusus u
 1.  Pastikan Anda sudah menginstal Flutter SDK.
 2.  **Clone** repository ini:
     ```bash
-    git clone [https://github.com/IamDoctrin/kasir_android.git](https://github.com/IamDoctrin/kasir_android.git)
+    git clone https://github.com/IamDoctrin/kasir_android.git
     ```
 3.  Pindah ke direktori proyek:
     ```bash
