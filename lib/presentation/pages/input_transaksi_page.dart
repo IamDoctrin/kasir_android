@@ -125,13 +125,31 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
       diskon: 0,
       ppnPersentase: cart.isPpnEnabled ? 11.0 : 0.0,
       ppnJumlah: cart.ppnAmount,
-      grandTotal: cart.subtotal,
+      grandTotal: cart.grandTotal,
       status: 'Open',
       lokasiMeja: _selectedLokasi,
       nomorMeja: int.tryParse(_nomorMejaController.text) ?? 0,
       metodePembayaran: '',
       nomorTransaksi: nomorTransaksiValue,
+      isSynced: 0,
     );
+
+    // print('====================================================');
+    // print('>>> DEBUG: DATA TRANSAKSI "OPEN" YANG AKAN DISIMPAN');
+    // print('====================================================');
+    // print('ID Transaksi: ${trx.id}');
+    // print('Nomor Transaksi: ${trx.nomorTransaksi}');
+    // print('Waktu: ${trx.waktuTransaksi}');
+    // print('Status: ${trx.status}');
+    // print('Subtotal: ${trx.subtotal}');
+    // print('PPN Jumlah: ${trx.ppnJumlah}');
+    // print('Grand Total: ${trx.grandTotal}');
+    // print('Lokasi Meja: ${trx.lokasiMeja}');
+    // print('Nomor Meja: ${trx.nomorMeja}');
+    // print('Metode Pembayaran: ${trx.metodePembayaran}');
+    // print('Is Synced: ${trx.isSynced}');
+    // print('====================================================');
+
     if (widget.editingTransactionId == null) {
       final transactionId = await db.transaksiDao.insertTransaksi(trx);
       if (transactionId == null) return;
@@ -208,7 +226,7 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                   diskon: 0,
                   ppnPersentase: cart.isPpnEnabled ? 11.0 : 0.0,
                   ppnJumlah: ppnForReceipt,
-                  grandTotal: subtotalForReceipt,
+                  grandTotal: totalForReceipt,
                   status: 'Closed',
                   lokasiMeja: _selectedLokasi,
                   nomorMeja: int.tryParse(_nomorMejaController.text) ?? 0,

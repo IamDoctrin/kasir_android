@@ -40,10 +40,30 @@ abstract class TransaksiDao {
     int endOfDay,
   );
 
-  @Query(
-    'SELECT id, waktu_transaksi, subtotal, diskon, ppn_persentase, ppn_jumlah, grand_total, status, nomorTransaksi, lokasiMeja, nomorMeja, metodePembayaran FROM Transaksi WHERE id = :id',
-  )
-  Future<Transaksi?> findTransaksiById(int id);
+  @Query('SELECT * FROM Transaksi WHERE id = :id')
+  Future<Transaksi?> findTransaksiByIdRaw(int id);
+  Future<Transaksi?> findTransaksiById(int id) async {
+    final trx = await findTransaksiByIdRaw(id);
+    if (trx == null) return null;
+    if (trx.isSynced == null) {
+      return Transaksi(
+        id: trx.id,
+        waktuTransaksi: trx.waktuTransaksi,
+        subtotal: trx.subtotal,
+        diskon: trx.diskon,
+        ppnPersentase: trx.ppnPersentase,
+        ppnJumlah: trx.ppnJumlah,
+        grandTotal: trx.grandTotal,
+        status: trx.status,
+        nomorTransaksi: trx.nomorTransaksi,
+        lokasiMeja: trx.lokasiMeja,
+        nomorMeja: trx.nomorMeja,
+        metodePembayaran: trx.metodePembayaran,
+        isSynced: 0,
+      );
+    }
+    return trx;
+  }
 
   @insert
   Future<int?> insertTransaksi(Transaksi transaksi);
@@ -69,4 +89,9 @@ abstract class TransaksiDao {
     'SELECT * FROM Transaksi WHERE waktu_transaksi BETWEEN :startDate AND :endDate ORDER BY waktu_transaksi DESC',
   )
   Future<List<Transaksi>> findTransaksiByDateRange(int startDate, int endDate);
+
+  @Query(
+    "SELECT * FROM Transaksi WHERE status = 'Closed' AND (is_synced = 0 OR is_synced IS NULL)",
+  )
+  Future<List<Transaksi>> findUnsyncedTransactions();
 }

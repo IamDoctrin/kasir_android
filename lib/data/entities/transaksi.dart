@@ -20,6 +20,9 @@ class Transaksi {
   @ColumnInfo(name: 'grand_total')
   final int grandTotal;
 
+  @ColumnInfo(name: 'is_synced')
+  final int? isSynced;
+
   final String status;
   final String? nomorTransaksi;
   final String? lokasiMeja;
@@ -39,5 +42,6 @@ class Transaksi {
     this.lokasiMeja,
     this.nomorMeja,
     this.metodePembayaran,
+    this.isSynced,
   });
 }

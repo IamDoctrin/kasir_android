@@ -10,7 +10,12 @@ class DatabaseInstance {
     _database =
         await $FloorAppDatabase
             .databaseBuilder('gulai_kambiang_kakek.db')
-            .addMigrations([MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4])
+            .addMigrations([
+              MIGRATION_1_2,
+              MIGRATION_2_3,
+              MIGRATION_3_4,
+              MIGRATION_4_5,
+            ])
             .addCallback(
               Callback(
                 onCreate: (database, version) async {
