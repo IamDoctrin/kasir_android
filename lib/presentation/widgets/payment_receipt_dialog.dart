@@ -330,6 +330,13 @@ class ReceiptDialog extends StatelessWidget {
   });
 
   Future<void> _printReceipt(BuildContext context) async {
+    // Lebar 80mm, tinggi tak terbatas (karena kertas gulung), dengan margin 5mm di setiap sisi.
+    final pageFormat = PdfPageFormat(
+      80 * PdfPageFormat.mm,
+      double.infinity,
+      marginAll: 5 * PdfPageFormat.mm,
+    );
+
     final doc = pw.Document();
 
     final logoImage = pw.MemoryImage(
@@ -346,159 +353,138 @@ class ReceiptDialog extends StatelessWidget {
 
     doc.addPage(
       pw.Page(
-        pageFormat: PdfPageFormat.a4,
+        pageFormat: pageFormat,
         build: (pw.Context context) {
-          return pw.SizedBox(
-            width: double.infinity,
-            child: pw.FittedBox(
-              child: pw.Container(
-                width: 200,
-                padding: const pw.EdgeInsets.all(8),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Center(
-                      child: pw.SizedBox(
-                        width: 200,
-                        height: 60,
-                        child: pw.Image(logoImage),
-                      ),
-                    ),
-                    pw.SizedBox(height: 1),
-                    pw.Center(
-                      child: pw.Text(
-                        'JL Lintas Padang - Solok, Lubuk Selasih',
-                        style: const pw.TextStyle(fontSize: 8),
-                      ),
-                    ),
-                    pw.Center(
-                      child: pw.Text(
-                        'HP: 0813 6345 4213',
-                        style: const pw.TextStyle(fontSize: 8),
-                      ),
-                    ),
-                    pw.SizedBox(height: 15),
-                    pw.Text(
-                      'No. Transaksi: $nomorTransaksi',
-                      style: const pw.TextStyle(fontSize: 10),
-                    ),
-                    pw.Text(
-                      'Tanggal: ${formatter.format(now)}',
-                      style: const pw.TextStyle(fontSize: 10),
-                    ),
-                    pw.Text(
-                      'Meja: $lokasiMeja - $nomorMeja',
-                      style: const pw.TextStyle(fontSize: 10),
-                    ),
-                    pw.Text(
-                      'Pembayaran: $metodePembayaran',
-                      style: const pw.TextStyle(fontSize: 10),
-                    ),
-                    pw.SizedBox(height: 10),
-                    for (var item in cartItems)
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.symmetric(vertical: 2),
-                        child: pw.Row(
-                          children: [
-                            pw.Expanded(
-                              child: pw.Text(
-                                '${item.kuantitas}x ${item.produk.nama}',
-                                style: const pw.TextStyle(fontSize: 10),
-                              ),
-                            ),
-                            pw.Text(
-                              formatCurrency.format(
-                                item.produk.harga * item.kuantitas,
-                              ),
-                              style: const pw.TextStyle(fontSize: 10),
-                            ),
-                          ],
-                        ),
-                      ),
-                    pw.Divider(height: 10),
-                    pw.Row(
-                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                      children: [
-                        pw.Text(
-                          'Subtotal',
-                          style: const pw.TextStyle(fontSize: 10),
-                        ),
-                        pw.Text(
-                          formatCurrency.format(subtotal),
-                          style: const pw.TextStyle(fontSize: 10),
-                        ),
-                      ],
-                    ),
-                    pw.Row(
-                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                      children: [
-                        pw.Text(
-                          'PPN (10%)',
-                          style: const pw.TextStyle(fontSize: 10),
-                        ),
-                        pw.Text(
-                          formatCurrency.format(ppnAmount),
-                          style: const pw.TextStyle(fontSize: 10),
-                        ),
-                      ],
-                    ),
-                    pw.Divider(height: 10),
-                    pw.Row(
-                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                      children: [
-                        pw.Text(
-                          'Total',
-                          style: pw.TextStyle(
-                            fontWeight: pw.FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                        pw.Text(
-                          formatCurrency.format(totalAmount),
-                          style: pw.TextStyle(
-                            fontWeight: pw.FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                    pw.Row(
-                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                      children: [
-                        pw.Text(
-                          'Bayar',
-                          style: const pw.TextStyle(fontSize: 10),
-                        ),
-                        pw.Text(
-                          formatCurrency.format(paymentAmount),
-                          style: const pw.TextStyle(fontSize: 10),
-                        ),
-                      ],
-                    ),
-                    pw.Row(
-                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                      children: [
-                        pw.Text(
-                          'Kembali',
-                          style: const pw.TextStyle(fontSize: 10),
-                        ),
-                        pw.Text(
-                          formatCurrency.format(change),
-                          style: const pw.TextStyle(fontSize: 10),
-                        ),
-                      ],
-                    ),
-                    pw.SizedBox(height: 20),
-                    pw.Center(
-                      child: pw.Text(
-                        'Terima kasih!',
-                        style: const pw.TextStyle(fontSize: 10),
-                      ),
-                    ),
-                  ],
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Center(
+                child: pw.SizedBox(
+                  width: 150, // ukuran logo
+                  height: 60,
+                  child: pw.Image(logoImage),
                 ),
               ),
-            ),
+              pw.SizedBox(height: 1),
+              pw.Center(
+                child: pw.Text(
+                  'JL Lintas Padang - Solok, Lubuk Selasih',
+                  style: const pw.TextStyle(fontSize: 8),
+                ),
+              ),
+              pw.Center(
+                child: pw.Text(
+                  'HP: 0813 6345 4213',
+                  style: const pw.TextStyle(fontSize: 8),
+                ),
+              ),
+              pw.SizedBox(height: 15),
+              pw.Text(
+                'No. Transaksi: $nomorTransaksi',
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+              pw.Text(
+                'Tanggal: ${formatter.format(now)}',
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+              pw.Text(
+                'Meja: $lokasiMeja - $nomorMeja',
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+              pw.Text(
+                'Pembayaran: $metodePembayaran',
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+              pw.SizedBox(height: 10),
+              for (var item in cartItems)
+                pw.Padding(
+                  padding: const pw.EdgeInsets.symmetric(vertical: 2),
+                  child: pw.Row(
+                    children: [
+                      pw.Expanded(
+                        child: pw.Text(
+                          '${item.kuantitas}x ${item.produk.nama}',
+                          style: const pw.TextStyle(fontSize: 10),
+                        ),
+                      ),
+                      pw.Text(
+                        formatCurrency.format(
+                          item.produk.harga * item.kuantitas,
+                        ),
+                        style: const pw.TextStyle(fontSize: 10),
+                      ),
+                    ],
+                  ),
+                ),
+              pw.Divider(height: 10),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Subtotal', style: const pw.TextStyle(fontSize: 10)),
+                  pw.Text(
+                    formatCurrency.format(subtotal),
+                    style: const pw.TextStyle(fontSize: 10),
+                  ),
+                ],
+              ),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('PPN (10%)', style: const pw.TextStyle(fontSize: 10)),
+                  pw.Text(
+                    formatCurrency.format(ppnAmount),
+                    style: const pw.TextStyle(fontSize: 10),
+                  ),
+                ],
+              ),
+              pw.Divider(height: 10),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'Total',
+                    style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                  pw.Text(
+                    formatCurrency.format(totalAmount),
+                    style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Bayar', style: const pw.TextStyle(fontSize: 10)),
+                  pw.Text(
+                    formatCurrency.format(paymentAmount),
+                    style: const pw.TextStyle(fontSize: 10),
+                  ),
+                ],
+              ),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Kembali', style: const pw.TextStyle(fontSize: 10)),
+                  pw.Text(
+                    formatCurrency.format(change),
+                    style: const pw.TextStyle(fontSize: 10),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 20),
+              pw.Center(
+                child: pw.Text(
+                  'Terima kasih!',
+                  style: const pw.TextStyle(fontSize: 10),
+                ),
+              ),
+            ],
           );
         },
       ),

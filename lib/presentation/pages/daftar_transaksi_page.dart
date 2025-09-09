@@ -8,6 +8,7 @@ import '../../data/database_instance.dart';
 import '../../data/entities/transaksi.dart';
 import '../widgets/payment_receipt_dialog.dart';
 import '../widgets/transaction_detail_dialog.dart';
+import '../../services/api_service.dart';
 
 class DaftarTransaksiPage extends StatefulWidget {
   const DaftarTransaksiPage({super.key});
@@ -189,6 +190,26 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
         title: const Text('Riwayat Transaksi'),
         backgroundColor: Colors.brown[600],
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sync),
+            onPressed: () async {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Memulai sinkronisasi...')),
+              );
+
+              await ApiService().sinkronkanTransaksiTertunda();
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Sinkronisasi selesai.')),
+                );
+              }
+              _setFilterToToday();
+            },
+            tooltip: 'Sinkronkan Data',
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -263,9 +284,34 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
                             color: statusColor,
                           ),
                         ),
-                        title: Text(
-                          trxIdToShow,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        title: Row(
+                          children: [
+                            Text(
+                              trxIdToShow,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Menampilkan ikon HANYA jika status tidak "Open"
+                            if (!isOpen)
+                              Tooltip(
+                                message:
+                                    transaksi.isSynced == 1
+                                        ? 'Sudah disinkronkan'
+                                        : 'Menunggu sinkronisasi',
+                                child: Icon(
+                                  transaksi.isSynced == 1
+                                      ? Icons.cloud_done_outlined
+                                      : Icons.cloud_upload_outlined,
+                                  size: 16,
+                                  color:
+                                      transaksi.isSynced == 1
+                                          ? Colors.green.shade600
+                                          : Colors.grey.shade600,
+                                ),
+                              ),
+                          ],
                         ),
                         subtitle: Text(
                           '${dateFormatter.format(transaksi.waktuTransaksi)} • ${transaksi.lokasiMeja ?? ''} - Meja ${transaksi.nomorMeja ?? ''} • ${transaksi.metodePembayaran ?? ''}',

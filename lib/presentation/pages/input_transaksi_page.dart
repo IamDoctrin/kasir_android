@@ -134,22 +134,6 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
       isSynced: 0,
     );
 
-    // print('====================================================');
-    // print('>>> DEBUG: DATA TRANSAKSI "OPEN" YANG AKAN DISIMPAN');
-    // print('====================================================');
-    // print('ID Transaksi: ${trx.id}');
-    // print('Nomor Transaksi: ${trx.nomorTransaksi}');
-    // print('Waktu: ${trx.waktuTransaksi}');
-    // print('Status: ${trx.status}');
-    // print('Subtotal: ${trx.subtotal}');
-    // print('PPN Jumlah: ${trx.ppnJumlah}');
-    // print('Grand Total: ${trx.grandTotal}');
-    // print('Lokasi Meja: ${trx.lokasiMeja}');
-    // print('Nomor Meja: ${trx.nomorMeja}');
-    // print('Metode Pembayaran: ${trx.metodePembayaran}');
-    // print('Is Synced: ${trx.isSynced}');
-    // print('====================================================');
-
     if (widget.editingTransactionId == null) {
       final transactionId = await db.transaksiDao.insertTransaksi(trx);
       if (transactionId == null) return;
