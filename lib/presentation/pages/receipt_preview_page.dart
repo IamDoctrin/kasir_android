@@ -69,7 +69,8 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
                     builder: (context) => buildReceiptContent(widget),
                     onInitialized: (controller) {
                       _controller = controller;
-                      controller.paperSize = PaperSize.mm80; // 80mm
+                      controller.paperSize =
+                          PaperSize.mm80; // ukuran kertas 80mm
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         if (mounted) {
                           setState(() => _isReady = true);

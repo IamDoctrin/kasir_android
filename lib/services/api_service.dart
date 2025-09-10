@@ -44,36 +44,39 @@ class ApiService {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        // print('Transaksi #${transaksi.nomorTransaksi} berhasil dikirim ke server.');
+        print(
+          'BERHASIL: Transaksi #${transaksi.nomorTransaksi} terkirim ke server.',
+        );
         return true;
       } else {
-        // print(
-        //     'Gagal mengirim transaksi #${transaksi.nomorTransaksi}. Status: ${response.statusCode}, Body: ${response.body}');
+        print(
+          'GAGAL: Transaksi #${transaksi.nomorTransaksi}. Status: ${response.statusCode}, Body: ${response.body}',
+        );
         return false;
       }
     } on SocketException {
-      // print(
-      //     'Gagal mengirim transaksi #${transaksi.nomorTransaksi}: Tidak ada koneksi internet.');
+      print(
+        'GAGAL: Transaksi #${transaksi.nomorTransaksi}: Tidak ada koneksi internet atau server tidak ditemukan.',
+      );
       return false;
     } catch (e) {
-      // print(
-      //     'Gagal mengirim transaksi #${transaksi.nomorTransaksi}: Terjadi error -> $e');
+      print(
+        'GAGAL: Transaksi #${transaksi.nomorTransaksi}: Terjadi error -> $e',
+      );
       return false;
     }
   }
 
-  /// Menjalankan proses sinkronisasi untuk semua transaksi yang tertunda.
-  Future<void> sinkronkanTransaksiTertunda() async {
-    // print("Memulai proses sinkronisasi...");
+  // UBAH TIPE RETURN DARI void MENJADI Future<int>
+  Future<int> sinkronkanTransaksiTertunda() async {
+    int failureCount = 0; // Tambahkan counter untuk kegagalan
+
     final db = await DatabaseInstance.database;
     final unsyncedList = await db.transaksiDao.findUnsyncedTransactions();
 
     if (unsyncedList.isEmpty) {
-      // print("Tidak ada transaksi yang perlu disinkronkan.");
-      return;
+      return 0; // Kembalikan 0 jika tidak ada yang perlu disinkronkan
     }
-
-    // print("Ditemukan ${unsyncedList.length} transaksi untuk disinkronkan.");
 
     final allProduk = await db.produkDao.findAllProduk();
     final produkMap = {for (var p in allProduk) p.id!: p};
@@ -109,9 +112,12 @@ class ApiService {
           isSynced: 1,
         );
         await db.transaksiDao.updateTransaksi(syncedTrx);
-        // print("Update lokal untuk Transaksi #${trx.nomorTransaksi} berhasil.");
+      } else {
+        // Jika gagal, naikkan counter
+        failureCount++;
       }
     }
-    // print("Proses sinkronisasi selesai.");
+    // Kembalikan jumlah total kegagalan
+    return failureCount;
   }
 }

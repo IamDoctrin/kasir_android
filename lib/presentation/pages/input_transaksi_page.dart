@@ -11,7 +11,7 @@ import '../../data/entities/detail_transaksi.dart';
 import '../../data/models/cart_item.dart';
 import '../../providers/cart_provider.dart';
 import 'manajemen_menu_page.dart';
-import '../widgets/payment_receipt_dialog.dart';
+import '../pages/receipt_preview_page.dart';
 import '../widgets/payment_dialog_content.dart';
 
 class InputTransaksiPage extends StatefulWidget {
@@ -247,8 +247,7 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                 await showDialog(
                   context: currentContext,
                   builder:
-                      (context) => ReceiptDialog(
-                        transactionId: finalTransactionId,
+                      (context) => ReceiptPreviewPage(
                         nomorTransaksi: nomorTransaksiValue,
                         cartItems: itemsForReceipt,
                         subtotal: subtotalForReceipt,

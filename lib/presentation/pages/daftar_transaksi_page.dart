@@ -3,12 +3,11 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/cart_item.dart';
 import '../../providers/cart_provider.dart';
+import '../../services/api_service.dart';
 import 'input_transaksi_page.dart';
 import '../../data/database_instance.dart';
 import '../../data/entities/transaksi.dart';
-import '../widgets/payment_receipt_dialog.dart';
-import '../widgets/transaction_detail_dialog.dart';
-import '../../services/api_service.dart';
+import 'receipt_preview_page.dart';
 
 class DaftarTransaksiPage extends StatefulWidget {
   const DaftarTransaksiPage({super.key});
@@ -93,6 +92,46 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
     _setFilterToToday();
   }
 
+  Future<void> _navigateToPreview(Transaksi transaksi) async {
+    final db = await DatabaseInstance.database;
+    final details = await db.detailTransaksiDao.findDetailByTransaksiId(
+      transaksi.id!,
+    );
+    final allProduk = await db.produkDao.findAllProduk();
+    final produkMap = {for (var p in allProduk) p.id: p};
+
+    final items =
+        details.map((detail) {
+          return CartItem(
+            produk: produkMap[detail.produkId]!,
+            kuantitas: detail.kuantitas,
+          );
+        }).toList();
+
+    final paymentAmount = (transaksi.grandTotal).toDouble();
+
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => ReceiptPreviewPage(
+                nomorTransaksi: transaksi.nomorTransaksi ?? 'N/A',
+                cartItems: items,
+                subtotal: transaksi.subtotal,
+                ppnAmount: transaksi.ppnJumlah,
+                totalAmount: transaksi.grandTotal,
+                paymentAmount: paymentAmount,
+                change: 0,
+                lokasiMeja: transaksi.lokasiMeja ?? '',
+                nomorMeja: transaksi.nomorMeja ?? 0,
+                metodePembayaran: transaksi.metodePembayaran ?? 'N/A',
+              ),
+        ),
+      );
+    }
+  }
+
   void _deleteTransaction(Transaksi transaksi) {
     showDialog(
       context: context,
@@ -124,65 +163,6 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
     );
   }
 
-  Future<void> _showTransactionActions(Transaksi transaksi) async {
-    final db = await DatabaseInstance.database;
-    final details = await db.detailTransaksiDao.findDetailByTransaksiId(
-      transaksi.id!,
-    );
-    final allProduk = await db.produkDao.findAllProduk();
-    final produkMap = {for (var p in allProduk) p.id: p};
-
-    final items =
-        details.map((detail) {
-          return CartItem(
-            produk: produkMap[detail.produkId]!,
-            kuantitas: detail.kuantitas,
-          );
-        }).toList();
-
-    if (mounted) {
-      showDialog(
-        context: context,
-        builder:
-            (context) => TransactionDetailDialog(
-              transaksi: transaksi,
-              items: items,
-              onPrintReceipt: () {
-                Navigator.of(context).pop();
-                _showReceiptDialog(transaksi, items);
-              },
-            ),
-      );
-    }
-  }
-
-  Future<void> _showReceiptDialog(
-    Transaksi transaksi,
-    List<CartItem> items,
-  ) async {
-    final totalAmountWithPpn = (transaksi.subtotal) + (transaksi.ppnJumlah);
-
-    if (mounted) {
-      showDialog(
-        context: context,
-        builder:
-            (context) => ReceiptDialog(
-              transactionId: transaksi.id!,
-              nomorTransaksi: transaksi.nomorTransaksi ?? 'N/A',
-              cartItems: items,
-              subtotal: transaksi.subtotal,
-              ppnAmount: transaksi.ppnJumlah,
-              totalAmount: totalAmountWithPpn,
-              paymentAmount: totalAmountWithPpn.toDouble(),
-              change: 0,
-              lokasiMeja: transaksi.lokasiMeja ?? 'N/A',
-              nomorMeja: transaksi.nomorMeja ?? 0,
-              metodePembayaran: transaksi.metodePembayaran ?? 'N/A',
-            ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -194,17 +174,37 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
           IconButton(
             icon: const Icon(Icons.sync),
             onPressed: () async {
-              ScaffoldMessenger.of(context).showSnackBar(
+              final messenger = ScaffoldMessenger.of(context);
+              messenger.showSnackBar(
                 const SnackBar(content: Text('Memulai sinkronisasi...')),
               );
 
-              await ApiService().sinkronkanTransaksiTertunda();
+              final failures = await ApiService().sinkronkanTransaksiTertunda();
 
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Sinkronisasi selesai.')),
-                );
+                if (failures > 0) {
+                  // JIKA ADA KEGAGALAN
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '$failures transaksi gagal disinkronkan. Cek koneksi/server.',
+                      ),
+                      backgroundColor: Colors.red.shade700,
+                    ),
+                  );
+                } else {
+                  // JIKA SEMUA BERHASIL
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: const Text(
+                        'Semua transaksi berhasil disinkronkan.',
+                      ),
+                      backgroundColor: Colors.green.shade700,
+                    ),
+                  );
+                }
               }
+
               _setFilterToToday();
             },
             tooltip: 'Sinkronkan Data',
@@ -293,7 +293,6 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            // Menampilkan ikon HANYA jika status tidak "Open"
                             if (!isOpen)
                               Tooltip(
                                 message:
@@ -374,7 +373,7 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
                               transactionId: transaksi.id,
                             );
                           } else {
-                            _showTransactionActions(transaksi);
+                            _navigateToPreview(transaksi);
                           }
                         },
                       ),
