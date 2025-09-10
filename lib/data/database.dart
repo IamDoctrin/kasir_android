@@ -31,8 +31,14 @@ final MIGRATION_3_4 = Migration(3, 4, (database) async {
   );
 });
 
+final MIGRATION_4_5 = Migration(4, 5, (database) async {
+  await database.execute(
+    'ALTER TABLE Transaksi ADD COLUMN is_synced INTEGER NOT NULL DEFAULT 0',
+  );
+});
+
 @TypeConverters([DateTimeConverter])
-@Database(version: 4, entities: [Kategori, Produk, Transaksi, DetailTransaksi])
+@Database(version: 5, entities: [Kategori, Produk, Transaksi, DetailTransaksi])
 abstract class AppDatabase extends FloorDatabase {
   KategoriDao get kategoriDao;
   ProdukDao get produkDao;

@@ -4,6 +4,7 @@ import 'pages/daftar_transaksi_page.dart';
 import 'pages/laporan_penjualan_page.dart';
 import 'pages/manajemen_menu_page.dart';
 import 'pages/laporan_detail_transaksi_page.dart';
+import '../services/api_service.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -34,6 +35,7 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
+    ApiService().sinkronkanTransaksiTertunda();
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.grey[850]!,

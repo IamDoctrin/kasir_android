@@ -142,18 +142,18 @@ class _LaporanDetailTransaksiPageState
     _loadLaporan();
   }
 
-  Future<void> _exportDetailToPdf(List<TransactionWithDetails> data) async {
+  Future<void> _exportDetailToPdf(
+    List<TransactionWithDetails> data,
+    int subtotal,
+    int totalPpn,
+    int grandTotal,
+  ) async {
     final doc = pw.Document();
     final periode =
         'Periode: ${DateFormat('dd MMM yyyy').format(_currentStartDate)} - ${DateFormat('dd MMM yyyy').format(_currentEndDate)}';
 
     final logoImage = pw.MemoryImage(
       (await rootBundle.load('assets/images/rm_logo.png')).buffer.asUint8List(),
-    );
-
-    final grandTotal = data.fold<int>(
-      0,
-      (sum, item) => sum + (item.transaction.grandTotal),
     );
 
     doc.addPage(
@@ -187,79 +187,115 @@ class _LaporanDetailTransaksiPageState
               ],
             ),
         build: (context) {
-          List<pw.Widget> widgets =
-              data.map((trxWithDetails) {
-                final transaksi = trxWithDetails.transaction;
-                return pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 15),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        transaksi.nomorTransaksi ?? 'N/A',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                      ),
-                      pw.Text(
-                        '${dateFormatter.format(transaksi.waktuTransaksi)}',
-                      ),
-                      pw.Text('Metode: ${transaksi.metodePembayaran}'),
-                      pw.Divider(),
-                      for (var item in trxWithDetails.items)
-                        pw.Row(
-                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                          children: [
-                            pw.Text('${item.kuantitas}x ${item.produk.nama}'),
-                            pw.Text(
-                              currencyFormatter.format(
-                                item.produk.harga * item.kuantitas,
-                              ),
-                            ),
-                          ],
-                        ),
-                      pw.Divider(),
+          List<pw.Widget> widgets = [
+            ...data.map((trxWithDetails) {
+              final transaksi = trxWithDetails.transaction;
+              return pw.Padding(
+                padding: const pw.EdgeInsets.only(bottom: 15),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      transaksi.nomorTransaksi ?? 'N/A',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                    ),
+                    pw.Text(
+                      '${dateFormatter.format(transaksi.waktuTransaksi)}',
+                    ),
+                    pw.Text('Metode: ${transaksi.metodePembayaran}'),
+                    pw.Divider(),
+                    for (var item in trxWithDetails.items)
                       pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.end,
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
+                          pw.Text('${item.kuantitas}x ${item.produk.nama}'),
                           pw.Text(
-                            'Total: ',
-                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                          ),
-                          pw.Text(
-                            currencyFormatter.format(transaksi.grandTotal),
-                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                            currencyFormatter.format(
+                              item.produk.harga * item.kuantitas,
+                            ),
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                );
-              }).toList();
-
-          widgets.add(
-            pw.Padding(
-              padding: const pw.EdgeInsets.only(top: 15),
-              child: pw.Align(
-                alignment: pw.Alignment.centerRight,
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
-                  children: [
-                    pw.Divider(height: 5),
-                    pw.Text(
-                      'Grand Total: ${currencyFormatter.format(grandTotal)}',
-                      style: pw.TextStyle(
-                        fontWeight: pw.FontWeight.bold,
-                        fontSize: 14,
+                    pw.Divider(),
+                    pw.Align(
+                      alignment: pw.Alignment.centerRight,
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.end,
+                        children: [
+                          pw.Row(
+                            mainAxisSize: pw.MainAxisSize.min,
+                            children: [
+                              pw.Text('Subtotal: '),
+                              pw.Text(
+                                currencyFormatter.format(transaksi.subtotal),
+                              ),
+                            ],
+                          ),
+                          pw.Row(
+                            mainAxisSize: pw.MainAxisSize.min,
+                            children: [
+                              pw.Text('PPN: '),
+                              pw.Text(
+                                currencyFormatter.format(transaksi.ppnJumlah),
+                              ),
+                            ],
+                          ),
+                          pw.Row(
+                            mainAxisSize: pw.MainAxisSize.min,
+                            children: [
+                              pw.Text(
+                                'Grand Total: ',
+                                style: pw.TextStyle(
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
+                              ),
+                              pw.Text(
+                                currencyFormatter.format(transaksi.grandTotal),
+                                style: pw.TextStyle(
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
+              );
+            }),
+          ];
+
+          widgets.add(pw.Divider(height: 20));
+          widgets.add(
+            pw.Align(
+              alignment: pw.Alignment.centerRight,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Text(
+                    'Total Keseluruhan Tanpa PPN: ${currencyFormatter.format(subtotal)}',
+                    style: pw.TextStyle(fontSize: 16),
+                  ),
+                  pw.Text(
+                    'Total Keseluruhan PPN: ${currencyFormatter.format(totalPpn)}',
+                    style: pw.TextStyle(fontSize: 16),
+                  ),
+                  pw.SizedBox(height: 5),
+                  pw.Text(
+                    'Grand Total Keseluruhan: ${currencyFormatter.format(grandTotal)}',
+                    style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
               ),
             ),
           );
 
           return widgets;
         },
-        footer: (context) => pw.Container(),
       ),
     );
     await Printing.layoutPdf(onLayout: (format) async => doc.save());
@@ -324,10 +360,16 @@ class _LaporanDetailTransaksiPageState
                   );
                 }
                 final laporanList = snapshot.data!;
-                final grandTotal = laporanList.fold<int>(
+
+                final totalSubtotal = laporanList.fold<int>(
                   0,
-                  (sum, item) => sum + (item.transaction.grandTotal),
+                  (sum, item) => sum + item.transaction.subtotal,
                 );
+                final totalPpn = laporanList.fold<int>(
+                  0,
+                  (sum, item) => sum + item.transaction.ppnJumlah,
+                );
+                final grandTotal = totalSubtotal + totalPpn;
 
                 return Column(
                   children: [
@@ -341,7 +383,7 @@ class _LaporanDetailTransaksiPageState
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Text(
-                                'Ringkasan Laporan',
+                                'Ringkasan Detail Laporan',
                                 style: Theme.of(context).textTheme.titleLarge
                                     ?.copyWith(fontWeight: FontWeight.bold),
                               ),
@@ -359,6 +401,34 @@ class _LaporanDetailTransaksiPageState
                                   ),
                                 ],
                               ),
+                              const Divider(height: 16),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Total Tanpa PPN:'),
+                                  Text(
+                                    currencyFormatter.format(totalSubtotal),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Total PPN:'),
+                                  Text(
+                                    currencyFormatter.format(totalPpn),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Divider(height: 16),
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
@@ -368,6 +438,7 @@ class _LaporanDetailTransaksiPageState
                                     currencyFormatter.format(grandTotal),
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
+                                      fontSize: 16,
                                     ),
                                   ),
                                 ],
@@ -377,17 +448,14 @@ class _LaporanDetailTransaksiPageState
                                 alignment: Alignment.centerRight,
                                 child: ElevatedButton.icon(
                                   onPressed:
-                                      () => _exportDetailToPdf(laporanList),
+                                      () => _exportDetailToPdf(
+                                        laporanList,
+                                        totalSubtotal,
+                                        totalPpn,
+                                        grandTotal,
+                                      ),
                                   icon: const Icon(Icons.print),
                                   label: const Text('Cetak Laporan'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color.fromARGB(
-                                      255,
-                                      255,
-                                      255,
-                                      255,
-                                    ),
-                                  ),
                                 ),
                               ),
                             ],
@@ -424,20 +492,82 @@ class _LaporanDetailTransaksiPageState
                                   fontSize: 16,
                                 ),
                               ),
-                              children:
-                                  trxWithDetails.items.map((item) {
-                                    return ListTile(
-                                      dense: true,
-                                      title: Text(
-                                        '${item.kuantitas}x ${item.produk.nama}',
+                              children: [
+                                ...trxWithDetails.items.map((item) {
+                                  return ListTile(
+                                    dense: true,
+                                    title: Text(
+                                      '${item.kuantitas}x ${item.produk.nama}',
+                                    ),
+                                    trailing: Text(
+                                      currencyFormatter.format(
+                                        item.produk.harga * item.kuantitas,
                                       ),
-                                      trailing: Text(
-                                        currencyFormatter.format(
-                                          item.produk.harga * item.kuantitas,
-                                        ),
+                                    ),
+                                  );
+                                }),
+
+                                const Divider(
+                                  height: 1,
+                                  indent: 16,
+                                  endIndent: 16,
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16.0,
+                                    vertical: 8.0,
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text('Subtotal:'),
+                                          Text(
+                                            currencyFormatter.format(
+                                              transaksi.subtotal,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    );
-                                  }).toList(),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text('PPN:'),
+                                          Text(
+                                            currencyFormatter.format(
+                                              transaksi.ppnJumlah,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const Divider(height: 8),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text(
+                                            'Total:',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Text(
+                                            currencyFormatter.format(
+                                              transaksi.grandTotal,
+                                            ),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           );
                         },

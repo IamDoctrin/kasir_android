@@ -11,7 +11,7 @@ import '../../data/entities/detail_transaksi.dart';
 import '../../data/models/cart_item.dart';
 import '../../providers/cart_provider.dart';
 import 'manajemen_menu_page.dart';
-import '../widgets/payment_receipt_dialog.dart';
+import '../pages/receipt_preview_page.dart';
 import '../widgets/payment_dialog_content.dart';
 
 class InputTransaksiPage extends StatefulWidget {
@@ -125,13 +125,15 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
       diskon: 0,
       ppnPersentase: cart.isPpnEnabled ? 11.0 : 0.0,
       ppnJumlah: cart.ppnAmount,
-      grandTotal: cart.subtotal,
+      grandTotal: cart.grandTotal,
       status: 'Open',
       lokasiMeja: _selectedLokasi,
       nomorMeja: int.tryParse(_nomorMejaController.text) ?? 0,
       metodePembayaran: '',
       nomorTransaksi: nomorTransaksiValue,
+      isSynced: 0,
     );
+
     if (widget.editingTransactionId == null) {
       final transactionId = await db.transaksiDao.insertTransaksi(trx);
       if (transactionId == null) return;
@@ -208,7 +210,7 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                   diskon: 0,
                   ppnPersentase: cart.isPpnEnabled ? 11.0 : 0.0,
                   ppnJumlah: ppnForReceipt,
-                  grandTotal: subtotalForReceipt,
+                  grandTotal: totalForReceipt,
                   status: 'Closed',
                   lokasiMeja: _selectedLokasi,
                   nomorMeja: int.tryParse(_nomorMejaController.text) ?? 0,
@@ -245,8 +247,7 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                 await showDialog(
                   context: currentContext,
                   builder:
-                      (context) => ReceiptDialog(
-                        transactionId: finalTransactionId,
+                      (context) => ReceiptPreviewPage(
                         nomorTransaksi: nomorTransaksiValue,
                         cartItems: itemsForReceipt,
                         subtotal: subtotalForReceipt,
