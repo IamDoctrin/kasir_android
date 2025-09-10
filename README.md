@@ -1,4 +1,4 @@
-# Aplikasi Kasir - Ruangkito
+# Aplikasi Kasir - Gulai Kambiang Kakek
 
 <p align="center">
   <img src="assets/images/app_logo_nobg.png" width="200">
