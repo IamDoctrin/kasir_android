@@ -8,6 +8,7 @@ import 'input_transaksi_page.dart';
 import '../../data/database_instance.dart';
 import '../../data/entities/transaksi.dart';
 import 'receipt_preview_page.dart';
+import '../widgets/last_sync_widget.dart';
 
 class DaftarTransaksiPage extends StatefulWidget {
   const DaftarTransaksiPage({super.key});
@@ -19,6 +20,8 @@ class DaftarTransaksiPage extends StatefulWidget {
 class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
   late Future<List<Transaksi>> _transaksiFuture;
   String _selectedFilter = 'Hari Ini';
+
+  final GlobalKey<LastSyncWidgetState> _syncWidgetKey = GlobalKey();
 
   final currencyFormatter = NumberFormat.currency(
     locale: 'id_ID',
@@ -167,7 +170,13 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Riwayat Transaksi'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Riwayat Transaksi'),
+            LastSyncWidget(key: _syncWidgetKey),
+          ],
+        ),
         backgroundColor: Colors.brown[600],
         foregroundColor: Colors.white,
         actions: [
@@ -175,25 +184,27 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
             icon: const Icon(Icons.sync),
             onPressed: () async {
               final messenger = ScaffoldMessenger.of(context);
+
               messenger.showSnackBar(
                 const SnackBar(content: Text('Memulai sinkronisasi...')),
               );
 
-              final failures = await ApiService().sinkronkanTransaksiTertunda();
+              final result = await ApiService().sinkronkanTransaksiTertunda();
+
+              // Refresh tampilan waktu sinkronisasi
+              _syncWidgetKey.currentState?.loadLastSyncTime();
 
               if (mounted) {
-                if (failures > 0) {
-                  // JIKA ADA KEGAGALAN
+                if (result.failureCount > 0) {
                   messenger.showSnackBar(
                     SnackBar(
                       content: Text(
-                        '$failures transaksi gagal disinkronkan. Cek koneksi/server.',
+                        '${result.failureCount} transaksi gagal disinkronkan, Cek Koneksi internet Anda.',
                       ),
                       backgroundColor: Colors.red.shade700,
                     ),
                   );
-                } else {
-                  // JIKA SEMUA BERHASIL
+                } else if (result.hasUnsyncedData) {
                   messenger.showSnackBar(
                     SnackBar(
                       content: const Text(
@@ -202,9 +213,14 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
                       backgroundColor: Colors.green.shade700,
                     ),
                   );
+                } else {
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Tidak ada data baru untuk disinkronkan.'),
+                    ),
+                  );
                 }
               }
-
               _setFilterToToday();
             },
             tooltip: 'Sinkronkan Data',

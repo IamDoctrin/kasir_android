@@ -123,7 +123,7 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
       waktuTransaksi: DateTime.now(),
       subtotal: cart.subtotal,
       diskon: 0,
-      ppnPersentase: cart.isPpnEnabled ? 11.0 : 0.0,
+      ppnPersentase: cart.isPpnEnabled ? 10.0 : 0.0,
       ppnJumlah: cart.ppnAmount,
       grandTotal: cart.grandTotal,
       status: 'Open',

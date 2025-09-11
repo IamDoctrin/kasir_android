@@ -6,6 +6,13 @@ import '../config/api_config.dart';
 import '../data/database_instance.dart';
 import '../data/entities/transaksi.dart';
 import '../data/models/cart_item.dart';
+import '../data/sync_manager.dart';
+
+class SyncResult {
+  final bool hasUnsyncedData;
+  final int failureCount;
+  SyncResult({required this.hasUnsyncedData, required this.failureCount});
+}
 
 class ApiService {
   Future<bool> kirimTransaksi(Transaksi transaksi, List<CartItem> items) async {
@@ -44,38 +51,37 @@ class ApiService {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        print(
-          'BERHASIL: Transaksi #${transaksi.nomorTransaksi} terkirim ke server.',
-        );
+        // print(
+        //   'BERHASIL: Transaksi #${transaksi.nomorTransaksi} terkirim ke server.',
+        // );
         return true;
       } else {
-        print(
-          'GAGAL: Transaksi #${transaksi.nomorTransaksi}. Status: ${response.statusCode}, Body: ${response.body}',
-        );
+        // print(
+        //   'GAGAL: Transaksi #${transaksi.nomorTransaksi}. Status: ${response.statusCode}, Body: ${response.body}',
+        // );
         return false;
       }
     } on SocketException {
-      print(
-        'GAGAL: Transaksi #${transaksi.nomorTransaksi}: Tidak ada koneksi internet atau server tidak ditemukan.',
-      );
+      // print(
+      //   'GAGAL: Transaksi #${transaksi.nomorTransaksi}: Tidak ada koneksi internet atau server tidak ditemukan.',
+      // );
       return false;
     } catch (e) {
-      print(
-        'GAGAL: Transaksi #${transaksi.nomorTransaksi}: Terjadi error -> $e',
-      );
+      // print(
+      //   'GAGAL: Transaksi #${transaksi.nomorTransaksi}: Terjadi error -> $e',
+      // );
       return false;
     }
   }
 
-  // UBAH TIPE RETURN DARI void MENJADI Future<int>
-  Future<int> sinkronkanTransaksiTertunda() async {
-    int failureCount = 0; // Tambahkan counter untuk kegagalan
-
+  Future<SyncResult> sinkronkanTransaksiTertunda() async {
+    int failureCount = 0;
     final db = await DatabaseInstance.database;
     final unsyncedList = await db.transaksiDao.findUnsyncedTransactions();
 
     if (unsyncedList.isEmpty) {
-      return 0; // Kembalikan 0 jika tidak ada yang perlu disinkronkan
+      await SyncManager.setLastSyncTime(); // Tetap update waktu sync
+      return SyncResult(hasUnsyncedData: false, failureCount: 0);
     }
 
     final allProduk = await db.produkDao.findAllProduk();
@@ -118,6 +124,7 @@ class ApiService {
       }
     }
     // Kembalikan jumlah total kegagalan
-    return failureCount;
+    await SyncManager.setLastSyncTime();
+    return SyncResult(hasUnsyncedData: true, failureCount: failureCount);
   }
 }

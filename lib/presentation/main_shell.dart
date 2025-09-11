@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import '../services/api_service.dart';
 import 'pages/daftar_transaksi_page.dart';
 import 'pages/laporan_penjualan_page.dart';
 import 'pages/manajemen_menu_page.dart';
 import 'pages/laporan_detail_transaksi_page.dart';
-import '../services/api_service.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -15,6 +17,7 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
+  Timer? _syncTimer; // Variabel untuk menampung timer
 
   static final List<Widget> _pages = <Widget>[
     const DaftarTransaksiPage(),
@@ -32,10 +35,17 @@ class _MainShellState extends State<MainShell> {
     });
   }
 
+  // Memulai timer sinkronisasi
+  void _startSyncTimer() {
+    _syncTimer = Timer.periodic(const Duration(minutes: 30), (timer) {
+      // Setiap 30 menit
+      ApiService().sinkronkanTransaksiTertunda();
+    });
+  }
+
   @override
   void initState() {
     super.initState();
-    ApiService().sinkronkanTransaksiTertunda();
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.grey[850]!,
@@ -43,13 +53,25 @@ class _MainShellState extends State<MainShell> {
         systemNavigationBarColor: Colors.transparent,
       ),
     );
+
+    // Jalankan sinkronisasi saat aplikasi pertama kali dibuka
+    ApiService().sinkronkanTransaksiTertunda();
+
+    // Mulai timer untuk sinkronisasi interval
+    _startSyncTimer();
+  }
+
+  // Hentikan timer saat halaman ditutup
+  @override
+  void dispose() {
+    _syncTimer?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[850],
-
       body: SafeArea(
         child: Row(
           children: <Widget>[
