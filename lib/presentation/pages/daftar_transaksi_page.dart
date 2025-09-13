@@ -205,7 +205,7 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage>
       builder:
           (context) => AlertDialog(
             title: const Text('Konfirmasi Hapus'),
-            content: Text('Anda yakin ingin menghapus transaksi ini?'),
+            content: const Text('Anda yakin ingin menghapus transaksi ini?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -228,6 +228,97 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage>
     );
   }
 
+  void _showDownloadProgressDialog() {
+    final downloadStream = ApiService().ambilDanSimpanTransaksiDariWeb();
+    String lastMessage = ""; // Simpan pesan terakhir jika stream selesai
+
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Jangan biarkan dialog ditutup paksa
+      builder: (dialogContext) {
+        return StreamBuilder<String>(
+          stream: downloadStream,
+          builder: (context, snapshot) {
+            Widget contentWidget;
+            bool isDone = false;
+            bool isError = false;
+
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                !snapshot.hasData) {
+              // Stream baru mulai
+              contentWidget = Row(
+                children: const [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 20),
+                  Flexible(child: Text("Memulai koneksi...")),
+                ],
+              );
+            } else if (snapshot.hasError) {
+              // Stream error
+              isError = true;
+              lastMessage = "Error: ${snapshot.error}";
+              contentWidget = Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.error, color: Colors.red[700]),
+                  const SizedBox(width: 20),
+                  Flexible(child: Text(lastMessage)),
+                ],
+              );
+            } else if (snapshot.connectionState == ConnectionState.done) {
+              // Stream selesai
+              isDone = true;
+              lastMessage =
+                  snapshot.data ?? "Selesai."; // Pesan final dari stream
+              if (lastMessage.startsWith("ERROR:")) {
+                isError = true;
+              }
+              contentWidget = Row(
+                children: [
+                  Icon(
+                    isError ? Icons.warning : Icons.check_circle,
+                    color: isError ? Colors.orange[700] : Colors.green[700],
+                  ),
+                  const SizedBox(width: 20),
+                  Flexible(child: Text(lastMessage)),
+                ],
+              );
+            } else {
+              // Stream aktif dan mengirim data progres
+              lastMessage = snapshot.data ?? "...";
+              contentWidget = Row(
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(width: 20),
+                  Flexible(child: Text(lastMessage)),
+                ],
+              );
+            }
+
+            return AlertDialog(
+              title: const Text('Mengunduh Data Server'),
+              content: Padding(
+                padding: const EdgeInsets.only(top: 20.0),
+                child: contentWidget,
+              ),
+              actions: [
+                if (isDone ||
+                    isError) // Hanya tampilkan tombol jika sudah selesai/error
+                  TextButton(
+                    child: const Text('Tutup'),
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop(); // Tutup dialog
+                      _setFilterToToday(); // Refresh data di halaman utama
+                    },
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -244,27 +335,11 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage>
         actions: [
           IconButton(
             icon: const Icon(Icons.cloud_download_outlined),
-            onPressed: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              messenger.showSnackBar(
-                const SnackBar(content: Text('Mengunduh data dari server...')),
-              );
-
-              final resultMessage =
-                  await ApiService().ambilDanSimpanTransaksiDariWeb();
-
-              if (mounted) {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(resultMessage),
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
-              }
-              _setFilterToToday();
-            },
+            onPressed:
+                _showDownloadProgressDialog, // Panggil fungsi dialog baru
             tooltip: 'Download Data dari Server',
           ),
+
           IconButton(
             icon: const Icon(Icons.sync),
             onPressed: () async {
@@ -410,7 +485,7 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage>
                         displayTitle = 'PESANAN BUNGKUS';
                       } else {
                         displayTitle =
-                            'PESANAN Meja ${transaksi.lokasiMeja ?? ''} No. ${transaksi.nomorMeja ?? ''}'
+                            'PESANAN ${transaksi.lokasiMeja ?? ''} ${transaksi.nomorMeja ?? ''}'
                                 .trim();
                       }
                     } else {
@@ -446,7 +521,7 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage>
                         title: Row(
                           children: [
                             Text(
-                              displayTitle,
+                              displayTitle, // Menggunakan variabel baru
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),
