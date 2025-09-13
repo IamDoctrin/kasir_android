@@ -23,6 +23,12 @@ class Transaksi {
   @ColumnInfo(name: 'is_synced')
   final int? isSynced;
 
+  @ColumnInfo(name: 'jumlah_bayar')
+  final int? jumlahBayar;
+
+  @ColumnInfo(name: 'jumlah_kembali')
+  final int? jumlahKembali;
+
   final String status;
   final String? nomorTransaksi;
   final String? lokasiMeja;
@@ -43,5 +49,7 @@ class Transaksi {
     this.nomorMeja,
     this.metodePembayaran,
     this.isSynced,
+    this.jumlahBayar,
+    this.jumlahKembali,
   });
 }

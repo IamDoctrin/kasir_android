@@ -27,7 +27,10 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
   int? _selectedCategoryId;
   String _selectedLokasi = 'Dalam';
   final _nomorMejaController = TextEditingController();
-  final List<String> _lokasiOptions = ['Dalam', 'Luar', 'Bawah'];
+  String _appBarTitle = 'Transaksi Baru';
+
+  final List<String> _lokasiOptions = ['Dalam', 'Luar', 'Bawah', 'Bungkus'];
+
   final currencyFormatter = NumberFormat.currency(
     locale: 'id_ID',
     symbol: 'Rp ',
@@ -60,7 +63,7 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
     if (trx == null) return;
     final details = await db.detailTransaksiDao.findDetailByTransaksiId(trxId);
     final allProduk = await db.produkDao.findAllProduk();
-    final produkMap = {for (var p in allProduk) p.id: p};
+    final produkMap = {for (var p in allProduk) p.id!: p};
     final itemsForCart =
         details.map((detail) {
           return CartItem(
@@ -69,9 +72,19 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
           );
         }).toList();
     cart.loadFromCartItems(itemsForCart);
+
+    String newTitle;
+    if (trx.lokasiMeja == 'Bungkus') {
+      newTitle = 'Edit PESANAN BUNGKUS';
+    } else {
+      newTitle =
+          'Edit PESANAN ${trx.lokasiMeja ?? ''} ${trx.nomorMeja ?? ''}'.trim();
+    }
+
     setState(() {
       _selectedLokasi = trx.lokasiMeja ?? 'Dalam';
-      _nomorMejaController.text = (trx.nomorMeja ?? 0).toString();
+      _nomorMejaController.text = (trx.nomorMeja ?? '').toString();
+      _appBarTitle = newTitle;
     });
   }
 
@@ -106,21 +119,43 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
   Future<void> _saveOpenTransaction() async {
     final cart = Provider.of<CartProvider>(context, listen: false);
     if (cart.items.isEmpty) return;
-    final db = await DatabaseInstance.database;
-    String nomorTransaksiValue;
-    if (widget.editingTransactionId == null) {
-      nomorTransaksiValue = await db.transaksiDao.generateNewTransactionNumber(
-        db,
+
+    if (_selectedLokasi != 'Bungkus' && _nomorMejaController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Peringatan: Nomor Meja harus diisi!'),
+          duration: Duration(seconds: 2),
+          backgroundColor: Colors.orange,
+        ),
       );
-    } else {
+      return;
+    }
+
+    final db = await DatabaseInstance.database;
+
+    String? nomorTransaksiValue;
+    DateTime waktuTransaksiValue;
+
+    if (widget.editingTransactionId != null) {
+      // Jika MENGEDIT transaksi 'Open' yang ada
       final existingTrx = await db.transaksiDao.findTransaksiById(
         widget.editingTransactionId!,
       );
-      nomorTransaksiValue = existingTrx?.nomorTransaksi ?? '';
+      // Pakai nomor Trx yang ada (seharusnya null jika alurnya benar)
+      nomorTransaksiValue = existingTrx?.nomorTransaksi;
+      // Pakai waktu transaksi ASLI (saat pertama kali dibuat), jangan di-update
+      waktuTransaksiValue = existingTrx?.waktuTransaksi ?? DateTime.now();
+    } else {
+      // Jika transaksi BARU (status Open)
+      // JANGAN BUAT NOMOR TRX DULU
+      nomorTransaksiValue = null;
+      // Pakai waktu sekarang sebagai waktu pembuatan
+      waktuTransaksiValue = DateTime.now();
     }
+
     final trx = Transaksi(
       id: widget.editingTransactionId,
-      waktuTransaksi: DateTime.now(),
+      waktuTransaksi: waktuTransaksiValue,
       subtotal: cart.subtotal,
       diskon: 0,
       ppnPersentase: cart.isPpnEnabled ? 10.0 : 0.0,
@@ -128,9 +163,12 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
       grandTotal: cart.grandTotal,
       status: 'Open',
       lokasiMeja: _selectedLokasi,
-      nomorMeja: int.tryParse(_nomorMejaController.text) ?? 0,
+      nomorMeja:
+          _selectedLokasi == 'Bungkus'
+              ? null
+              : int.tryParse(_nomorMejaController.text),
       metodePembayaran: '',
-      nomorTransaksi: nomorTransaksiValue,
+      nomorTransaksi: nomorTransaksiValue, // Akan menjadi null jika baru
       isSynced: 0,
     );
 
@@ -168,6 +206,17 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
   }
 
   void _showCustomPaymentDialog(CartProvider cart) {
+    if (_selectedLokasi != 'Bungkus' && _nomorMejaController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Peringatan: Nomor Meja harus diisi!'),
+          duration: Duration(seconds: 2),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -190,22 +239,39 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                 final int subtotalForReceipt = cart.subtotal;
                 final int ppnForReceipt = cart.ppnAmount;
                 final int totalForReceipt = cart.grandTotal;
-                final now = DateTime.now();
+                final double change = paymentAmount - totalForReceipt;
+
+                final now =
+                    DateTime.now(); // Ini adalah waktu 'Closing' transaksi
                 String nomorTransaksiValue;
 
                 if (widget.editingTransactionId == null) {
+                  // KASUS 1: Transaksi baru, langsung Bayar (Closed). HARUS generate nomor.
                   nomorTransaksiValue = await db.transaksiDao
                       .generateNewTransactionNumber(db);
                 } else {
+                  // KASUS 2: Transaksi edit (dari 'Open' menjadi 'Closed').
                   final existingTrx = await db.transaksiDao.findTransaksiById(
                     widget.editingTransactionId!,
                   );
-                  nomorTransaksiValue = existingTrx?.nomorTransaksi ?? '';
+
+                  // Cek apakah sudah punya nomor (seharusnya BELUM jika dari 'Open')
+                  // Ini adalah cek null-safe yang sudah diperbaiki
+                  if ((existingTrx?.nomorTransaksi ?? '').isEmpty) {
+                    // Jika BELUM punya nomor (karena tadinya 'Open'), GENERATE BARU.
+                    nomorTransaksiValue = await db.transaksiDao
+                        .generateNewTransactionNumber(db);
+                  } else {
+                    // Jika sudah punya (aneh, tapi aman), pakai lagi nomor yg ada.
+                    // Ini adalah perbaikan null-safe untuk blok 'else'
+                    nomorTransaksiValue = existingTrx!.nomorTransaksi!;
+                  }
                 }
 
                 final trx = Transaksi(
                   id: widget.editingTransactionId,
-                  waktuTransaksi: now,
+                  waktuTransaksi:
+                      now, // Waktu transaksi di-update ke waktu pembayaran/closing
                   subtotal: subtotalForReceipt,
                   diskon: 0,
                   ppnPersentase: cart.isPpnEnabled ? 11.0 : 0.0,
@@ -213,9 +279,16 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                   grandTotal: totalForReceipt,
                   status: 'Closed',
                   lokasiMeja: _selectedLokasi,
-                  nomorMeja: int.tryParse(_nomorMejaController.text) ?? 0,
+                  nomorMeja:
+                      _selectedLokasi == 'Bungkus'
+                          ? null
+                          : int.tryParse(_nomorMejaController.text),
                   metodePembayaran: paymentMethod,
-                  nomorTransaksi: nomorTransaksiValue,
+                  nomorTransaksi:
+                      nomorTransaksiValue, // Gunakan nomor yang baru digenerate
+                  isSynced: 0,
+                  jumlahBayar: paymentAmount.toInt(),
+                  jumlahKembali: change.toInt(),
                 );
 
                 if (widget.editingTransactionId == null) {
@@ -244,21 +317,26 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                 if (!currentContext.mounted) return;
                 Navigator.of(currentContext).pop();
 
-                await showDialog(
-                  context: currentContext,
-                  builder:
-                      (context) => ReceiptPreviewPage(
-                        nomorTransaksi: nomorTransaksiValue,
-                        cartItems: itemsForReceipt,
-                        subtotal: subtotalForReceipt,
-                        ppnAmount: ppnForReceipt,
-                        totalAmount: totalForReceipt,
-                        paymentAmount: paymentAmount,
-                        change: paymentAmount - totalForReceipt,
-                        lokasiMeja: _selectedLokasi,
-                        nomorMeja: int.tryParse(_nomorMejaController.text) ?? 0,
-                        metodePembayaran: paymentMethod,
-                      ),
+                await Navigator.of(currentContext).push(
+                  MaterialPageRoute(
+                    builder:
+                        (context) => ReceiptPreviewPage(
+                          nomorTransaksi: nomorTransaksiValue,
+                          cartItems: itemsForReceipt,
+                          subtotal: subtotalForReceipt,
+                          ppnAmount: ppnForReceipt,
+                          totalAmount: totalForReceipt,
+                          paymentAmount: paymentAmount,
+                          change: change,
+                          lokasiMeja: _selectedLokasi,
+                          nomorMeja:
+                              _selectedLokasi == 'Bungkus'
+                                  ? 0
+                                  : int.tryParse(_nomorMejaController.text) ??
+                                      0,
+                          metodePembayaran: paymentMethod,
+                        ),
+                  ),
                 );
 
                 cart.clearCart();
@@ -326,11 +404,7 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: Text(
-          widget.editingTransactionId == null
-              ? 'Transaksi Baru'
-              : 'Edit Transaksi',
-        ),
+        title: Text(_appBarTitle),
         backgroundColor: Colors.white,
         elevation: 1,
         actions: [
@@ -388,13 +462,14 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             flex: 2,
             child: DropdownButtonFormField<String>(
               value: _selectedLokasi,
               decoration: const InputDecoration(
-                labelText: 'Lokasi Meja',
+                labelText: 'Lokasi',
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(horizontal: 12),
               ),
@@ -415,18 +490,19 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
             ),
           ),
           const SizedBox(width: 16),
-          Expanded(
-            flex: 1,
-            child: TextField(
-              controller: _nomorMejaController,
-              decoration: const InputDecoration(
-                labelText: 'No. Meja',
-                border: OutlineInputBorder(),
+          if (_selectedLokasi != 'Bungkus')
+            Expanded(
+              flex: 1,
+              child: TextField(
+                controller: _nomorMejaController,
+                decoration: const InputDecoration(
+                  labelText: 'No. Meja',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               ),
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             ),
-          ),
         ],
       ),
     );
@@ -488,6 +564,8 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -617,24 +695,7 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   OutlinedButton(
-                    onPressed:
-                        cart.items.isEmpty
-                            ? null
-                            : () {
-                              if (_nomorMejaController.text.isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Peringatan: Nomor Meja harus diisi!',
-                                    ),
-                                    duration: Duration(seconds: 1),
-                                    backgroundColor: Colors.orange,
-                                  ),
-                                );
-                              } else {
-                                _saveOpenTransaction();
-                              }
-                            },
+                    onPressed: cart.items.isEmpty ? null : _saveOpenTransaction,
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       side: BorderSide(color: Colors.brown.shade400),
@@ -658,21 +719,7 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                     onPressed:
                         cart.items.isEmpty
                             ? null
-                            : () {
-                              if (_nomorMejaController.text.isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Peringatan: Nomor Meja harus diisi!',
-                                    ),
-                                    duration: Duration(seconds: 2),
-                                    backgroundColor: Colors.orange,
-                                  ),
-                                );
-                              } else {
-                                _showCustomPaymentDialog(cart);
-                              }
-                            },
+                            : () => _showCustomPaymentDialog(cart),
                   ),
                 ],
               ),

@@ -17,9 +17,12 @@ class DaftarTransaksiPage extends StatefulWidget {
   State<DaftarTransaksiPage> createState() => _DaftarTransaksiPageState();
 }
 
-class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
+class _DaftarTransaksiPageState extends State<DaftarTransaksiPage>
+    with WidgetsBindingObserver {
   late Future<List<Transaksi>> _transaksiFuture;
-  String _selectedFilter = 'Hari Ini';
+
+  DateTime _startDate = DateTime.now();
+  DateTime _endDate = DateTime.now();
 
   final GlobalKey<LastSyncWidgetState> _syncWidgetKey = GlobalKey();
 
@@ -33,53 +36,112 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _setFilterToToday();
   }
 
-  void _setFilterToToday() {
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      _runFilter();
+      _syncWidgetKey.currentState?.loadLastSyncTime();
+    }
+  }
+
+  void _runFilter() {
     setState(() {
-      _selectedFilter = 'Hari Ini';
-      final now = DateTime.now();
-      final startOfDay =
-          DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
-      final endOfDay =
+      final startMillis =
           DateTime(
-            now.year,
-            now.month,
-            now.day,
+            _startDate.year,
+            _startDate.month,
+            _startDate.day,
+          ).millisecondsSinceEpoch;
+      final endMillis =
+          DateTime(
+            _endDate.year,
+            _endDate.month,
+            _endDate.day,
             23,
             59,
             59,
           ).millisecondsSinceEpoch;
       _transaksiFuture = DatabaseInstance.database.then(
-        (db) => db.transaksiDao.findTransactionsForToday(startOfDay, endOfDay),
+        (db) =>
+            db.transaksiDao.findTransaksiByDateRange(startMillis, endMillis),
       );
     });
   }
 
+  void _setFilterToToday() {
+    final now = DateTime.now();
+    _startDate = now;
+    _endDate = now;
+    _runFilter();
+  }
+
   void _setFilterToYesterday() {
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    _startDate = yesterday;
+    _endDate = yesterday;
+    _runFilter();
+  }
+
+  void _setFilterToThisWeek() {
+    final now = DateTime.now();
+    _startDate = now.subtract(Duration(days: now.weekday - 1));
+    _endDate = _startDate.add(const Duration(days: 6));
+    _runFilter();
+  }
+
+  void _setFilterToThisMonth() {
+    final now = DateTime.now();
+    _startDate = DateTime(now.year, now.month, 1);
+    _endDate = DateTime(now.year, now.month + 1, 0);
+    _runFilter();
+  }
+
+  void _setFilterToLastMonth() {
+    final now = DateTime.now();
+    final firstDayOfCurrentMonth = DateTime(now.year, now.month, 1);
+    _endDate = firstDayOfCurrentMonth.subtract(const Duration(days: 1));
+    _startDate = DateTime(_endDate.year, _endDate.month, 1);
+    _runFilter();
+  }
+
+  Future<void> _selectCustomDateRange() async {
+    final pickedStartDate = await showDatePicker(
+      context: context,
+      initialDate: _startDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      helpText: 'TANGGAL AWAL',
+    );
+
+    if (pickedStartDate == null) return;
+    if (!mounted) return;
+
+    final pickedEndDate = await showDatePicker(
+      context: context,
+      initialDate: _endDate,
+      firstDate: pickedStartDate,
+      lastDate: DateTime.now(),
+      helpText: 'TANGGAL AKHIR',
+    );
+
+    if (pickedEndDate == null) return;
+
     setState(() {
-      _selectedFilter = 'Kemarin';
-      final yesterday = DateTime.now().subtract(const Duration(days: 1));
-      final startOfDay =
-          DateTime(
-            yesterday.year,
-            yesterday.month,
-            yesterday.day,
-          ).millisecondsSinceEpoch;
-      final endOfDay =
-          DateTime(
-            yesterday.year,
-            yesterday.month,
-            yesterday.day,
-            23,
-            59,
-            59,
-          ).millisecondsSinceEpoch;
-      _transaksiFuture = DatabaseInstance.database.then(
-        (db) => db.transaksiDao.findTransactionsForToday(startOfDay, endOfDay),
-      );
+      _startDate = pickedStartDate;
+      _endDate = pickedEndDate;
     });
+    _runFilter();
   }
 
   void _navigateToInputTransaksi({int? transactionId}) async {
@@ -101,7 +163,7 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
       transaksi.id!,
     );
     final allProduk = await db.produkDao.findAllProduk();
-    final produkMap = {for (var p in allProduk) p.id: p};
+    final produkMap = {for (var p in allProduk) p.id!: p};
 
     final items =
         details.map((detail) {
@@ -111,7 +173,9 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
           );
         }).toList();
 
-    final paymentAmount = (transaksi.grandTotal).toDouble();
+    final paymentAmount =
+        (transaksi.jumlahBayar ?? transaksi.grandTotal).toDouble();
+    final changeAmount = (transaksi.jumlahKembali ?? 0).toDouble();
 
     if (mounted) {
       Navigator.push(
@@ -125,7 +189,7 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
                 ppnAmount: transaksi.ppnJumlah,
                 totalAmount: transaksi.grandTotal,
                 paymentAmount: paymentAmount,
-                change: 0,
+                change: changeAmount,
                 lokasiMeja: transaksi.lokasiMeja ?? '',
                 nomorMeja: transaksi.nomorMeja ?? 0,
                 metodePembayaran: transaksi.metodePembayaran ?? 'N/A',
@@ -141,9 +205,7 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
       builder:
           (context) => AlertDialog(
             title: const Text('Konfirmasi Hapus'),
-            content: Text(
-              'Anda yakin ingin menghapus transaksi #${transaksi.nomorTransaksi ?? transaksi.id}?',
-            ),
+            content: Text('Anda yakin ingin menghapus transaksi ini?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -181,6 +243,29 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
+            icon: const Icon(Icons.cloud_download_outlined),
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              messenger.showSnackBar(
+                const SnackBar(content: Text('Mengunduh data dari server...')),
+              );
+
+              final resultMessage =
+                  await ApiService().ambilDanSimpanTransaksiDariWeb();
+
+              if (mounted) {
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(resultMessage),
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              }
+              _setFilterToToday();
+            },
+            tooltip: 'Download Data dari Server',
+          ),
+          IconButton(
             icon: const Icon(Icons.sync),
             onPressed: () async {
               final messenger = ScaffoldMessenger.of(context);
@@ -191,7 +276,6 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
 
               final result = await ApiService().sinkronkanTransaksiTertunda();
 
-              // Refresh tampilan waktu sinkronisasi
               _syncWidgetKey.currentState?.loadLastSyncTime();
 
               if (mounted) {
@@ -199,7 +283,7 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
                   messenger.showSnackBar(
                     SnackBar(
                       content: Text(
-                        '${result.failureCount} transaksi gagal disinkronkan, Cek Koneksi internet Anda.',
+                        '${result.failureCount} transaksi gagal disinkronkan.',
                       ),
                       backgroundColor: Colors.red.shade700,
                     ),
@@ -230,28 +314,54 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+            child: Wrap(
+              spacing: 8.0,
+              alignment: WrapAlignment.center,
               children: [
-                FilterChip(
-                  label: const Text('Hari Ini'),
-                  selected: _selectedFilter == 'Hari Ini',
-                  onSelected: (bool selected) {
-                    _setFilterToToday();
-                  },
+                ElevatedButton(
+                  onPressed: _setFilterToToday,
+                  child: const Text('Hari Ini'),
                 ),
-                const SizedBox(width: 8),
-                FilterChip(
-                  label: const Text('Kemarin'),
-                  selected: _selectedFilter == 'Kemarin',
-                  onSelected: (bool selected) {
-                    _setFilterToYesterday();
-                  },
+                ElevatedButton(
+                  onPressed: _setFilterToYesterday,
+                  child: const Text('Kemarin'),
+                ),
+                ElevatedButton(
+                  onPressed: _setFilterToThisWeek,
+                  child: const Text('Minggu Ini'),
+                ),
+                ElevatedButton(
+                  onPressed: _setFilterToThisMonth,
+                  child: const Text('Bulan Ini'),
+                ),
+                ElevatedButton(
+                  onPressed: _setFilterToLastMonth,
+                  child: const Text('Bulan Lalu'),
+                ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.calendar_month),
+                  label: const Text('Pilih Tanggal'),
+                  onPressed: _selectCustomDateRange,
                 ),
               ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 4.0,
+            ),
+            child: Text(
+              'Menampilkan periode: ${DateFormat('dd MMM yyyy').format(_startDate)} - ${DateFormat('dd MMM yyyy').format(_endDate)}',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade700,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+          const Divider(height: 1),
           Expanded(
             child: FutureBuilder<List<Transaksi>>(
               future: _transaksiFuture,
@@ -263,16 +373,28 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
                   return Center(child: Text('Error: ${snapshot.error}'));
                 }
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'Tidak ada transaksi.',
-                      style: TextStyle(fontSize: 18),
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Tidak ada transaksi pada periode ini.',
+                          style: TextStyle(fontSize: 18),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '(${DateFormat('dd MMM yyyy').format(_startDate)} - ${DateFormat('dd MMM yyyy').format(_endDate)})',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
                     ),
                   );
                 }
 
                 final transaksiList = snapshot.data!;
-
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   itemCount: transaksiList.length,
@@ -281,9 +403,30 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
                     final bool isOpen = transaksi.status == 'Open';
                     final Color statusColor =
                         isOpen ? Colors.orange : Colors.green;
-                    final trxIdToShow =
-                        transaksi.nomorTransaksi ??
-                        'TRX-${transaksi.id.toString().padLeft(7, '0')}';
+
+                    String displayTitle;
+                    if (isOpen) {
+                      if (transaksi.lokasiMeja == 'Bungkus') {
+                        displayTitle = 'PESANAN BUNGKUS';
+                      } else {
+                        displayTitle =
+                            'PESANAN Meja ${transaksi.lokasiMeja ?? ''} No. ${transaksi.nomorMeja ?? ''}'
+                                .trim();
+                      }
+                    } else {
+                      displayTitle =
+                          transaksi.nomorTransaksi ??
+                          'TRX-${transaksi.id.toString().padLeft(7, '0')}';
+                    }
+
+                    String subtitleText;
+                    if (transaksi.lokasiMeja == 'Bungkus') {
+                      subtitleText =
+                          '${dateFormatter.format(transaksi.waktuTransaksi)} • Bungkus • ${transaksi.metodePembayaran ?? ''}';
+                    } else {
+                      subtitleText =
+                          '${dateFormatter.format(transaksi.waktuTransaksi)} • ${transaksi.lokasiMeja ?? ''} - Meja ${transaksi.nomorMeja ?? ''} • ${transaksi.metodePembayaran ?? ''}';
+                    }
 
                     return Card(
                       elevation: 2,
@@ -303,7 +446,7 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
                         title: Row(
                           children: [
                             Text(
-                              trxIdToShow,
+                              displayTitle,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -329,7 +472,7 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage> {
                           ],
                         ),
                         subtitle: Text(
-                          '${dateFormatter.format(transaksi.waktuTransaksi)} • ${transaksi.lokasiMeja ?? ''} - Meja ${transaksi.nomorMeja ?? ''} • ${transaksi.metodePembayaran ?? ''}',
+                          subtitleText.replaceAll(' • •', ' •').trim(),
                         ),
                         trailing: SizedBox(
                           width: 150,

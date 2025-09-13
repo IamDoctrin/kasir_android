@@ -19,6 +19,9 @@ abstract class ProdukDao {
     int kategoriId,
   );
 
+  @Query('SELECT * FROM Produk WHERE nama = :nama LIMIT 1')
+  Future<Produk?> findProdukByName(String nama);
+
   @insert
   Future<void> insertProduk(Produk produk);
 

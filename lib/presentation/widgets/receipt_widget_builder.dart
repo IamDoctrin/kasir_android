@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../pages/receipt_preview_page.dart'; // Import halaman preview
+import '../pages/receipt_preview_page.dart';
 
-// Fungsi ini membangun tampilan struk berdasarkan data yang diberikan
 Widget buildReceiptContent(ReceiptPreviewPage widget) {
   final formatCurrency = NumberFormat.currency(
     locale: 'id_ID',
@@ -111,7 +110,6 @@ Widget buildReceiptContent(ReceiptPreviewPage widget) {
                 Divider(color: Colors.black, height: 24),
               ],
             ),
-
             TableRow(
               children: [
                 const Text('Subtotal', style: medium),
@@ -132,8 +130,6 @@ Widget buildReceiptContent(ReceiptPreviewPage widget) {
                 ),
               ],
             ),
-
-            // ==========================================================
             const TableRow(
               children: [
                 Divider(color: Colors.black, height: 24, thickness: 1.5),
@@ -146,6 +142,33 @@ Widget buildReceiptContent(ReceiptPreviewPage widget) {
                 Text(
                   formatCurrency.format(widget.totalAmount),
                   style: mediumBold,
+                  textAlign: TextAlign.right,
+                ),
+              ],
+            ),
+
+            const TableRow(
+              children: [
+                Divider(height: 24, thickness: 1, color: Colors.black54),
+                Divider(height: 24, thickness: 1, color: Colors.black54),
+              ],
+            ),
+            TableRow(
+              children: [
+                const Text('Bayar', style: medium),
+                Text(
+                  formatCurrency.format(widget.paymentAmount),
+                  style: medium,
+                  textAlign: TextAlign.right,
+                ),
+              ],
+            ),
+            TableRow(
+              children: [
+                const Text('Kembali', style: medium),
+                Text(
+                  formatCurrency.format(widget.change),
+                  style: medium,
                   textAlign: TextAlign.right,
                 ),
               ],

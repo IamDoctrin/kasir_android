@@ -248,6 +248,14 @@ class _LaporanPenjualanPageState extends State<LaporanPenjualanPage> {
     _generateReport();
   }
 
+  void _setFilterToLastMonth() {
+    final now = DateTime.now();
+    final firstDayOfCurrentMonth = DateTime(now.year, now.month, 1);
+    _endDate = firstDayOfCurrentMonth.subtract(const Duration(days: 1));
+    _startDate = DateTime(_endDate.year, _endDate.month, 1);
+    _generateReport();
+  }
+
   Future<void> _selectCustomDateRange() async {
     final pickedStartDate = await showDatePicker(
       context: context,
@@ -259,12 +267,16 @@ class _LaporanPenjualanPageState extends State<LaporanPenjualanPage> {
 
     if (pickedStartDate == null) return;
 
-    await Future.delayed(const Duration(milliseconds: 100));
+    DateTime safeInitialEndDate = _endDate;
+    if (pickedStartDate.isAfter(_endDate)) {
+      safeInitialEndDate = pickedStartDate;
+    }
+
     if (!mounted) return;
 
     final pickedEndDate = await showDatePicker(
       context: context,
-      initialDate: _endDate,
+      initialDate: safeInitialEndDate,
       firstDate: pickedStartDate,
       lastDate: DateTime.now(),
       helpText: 'TANGGAL AKHIR',
@@ -315,6 +327,10 @@ class _LaporanPenjualanPageState extends State<LaporanPenjualanPage> {
                       onPressed: _setFilterToThisMonth,
                       child: const Text('Bulan Ini'),
                     ),
+                    ElevatedButton(
+                      onPressed: _setFilterToLastMonth,
+                      child: const Text('Bulan Lalu'),
+                    ),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.calendar_month),
                       label: const Text('Pilih Tanggal'),
@@ -325,6 +341,71 @@ class _LaporanPenjualanPageState extends State<LaporanPenjualanPage> {
               ),
             ),
             const SizedBox(height: 16),
+
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'LAPORAN RINGKAS PENJUALAN',
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Periode: ${DateFormat('dd MMM yyyy').format(_startDate)} - ${DateFormat('dd MMM yyyy').format(_endDate)}',
+                      ),
+                    ],
+                  ),
+                ),
+                // Tombol ekspor akan dinonaktifkan jika tidak ada data
+                FutureBuilder<_ReportData>(
+                  future: _reportFuture,
+                  builder: (context, snapshot) {
+                    final hasData =
+                        snapshot.hasData && snapshot.data!.items.isNotEmpty;
+                    return Row(
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed:
+                              !hasData
+                                  ? null
+                                  : () => _exportToPdf(
+                                    snapshot.data!.items,
+                                    snapshot.data!.totalPenjualan,
+                                  ),
+                          icon: const Icon(Icons.print),
+                          label: const Text('PDF'),
+                          style: ElevatedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            backgroundColor: Colors.red[400],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed:
+                              !hasData
+                                  ? null
+                                  : () => _exportToExcel(
+                                    snapshot.data!.items,
+                                    snapshot.data!.totalPenjualan,
+                                  ),
+                          icon: const Icon(Icons.table_chart),
+                          label: const Text('Excel'),
+                          style: ElevatedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            backgroundColor: Colors.green[600],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+
             Expanded(
               child: FutureBuilder<_ReportData>(
                 future: _reportFuture,
@@ -343,120 +424,58 @@ class _LaporanPenjualanPageState extends State<LaporanPenjualanPage> {
 
                   final reportData = snapshot.data!;
 
-                  return Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'LAPORAN PENJUALAN',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineSmall
-                                      ?.copyWith(fontWeight: FontWeight.bold),
-                                ),
-                                Text(
-                                  'Periode: ${DateFormat('dd MMM yyyy').format(_startDate)} - ${DateFormat('dd MMM yyyy').format(_endDate)}',
-                                ),
-                              ],
-                            ),
-                          ),
-                          ElevatedButton.icon(
-                            onPressed:
-                                () => _exportToPdf(
-                                  reportData.items,
-                                  reportData.totalPenjualan,
-                                ),
-                            icon: const Icon(Icons.print),
-                            label: const Text('PDF'),
-                            style: ElevatedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              backgroundColor: Colors.red[400],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            onPressed:
-                                () => _exportToExcel(
-                                  reportData.items,
-                                  reportData.totalPenjualan,
-                                ),
-                            icon: const Icon(Icons.table_chart),
-                            label: const Text('Excel'),
-                            style: ElevatedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              backgroundColor: Colors.green[600],
-                            ),
-                          ),
-                        ],
+                  return SingleChildScrollView(
+                    child: DataTable(
+                      headingRowColor: MaterialStateProperty.all(
+                        Colors.brown[100],
                       ),
-                      const Divider(height: 24),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: DataTable(
-                            headingRowColor: MaterialStateProperty.all(
-                              Colors.brown[100],
-                            ),
-                            columns: const [
-                              DataColumn(label: Text('No')),
-                              DataColumn(label: Text('Nama Menu')),
-                              DataColumn(label: Text('Jml Terjual')),
-                              DataColumn(label: Text('Total'), numeric: true),
-                            ],
-                            rows: List<DataRow>.generate(
-                              reportData.items.length,
-                              (index) {
-                                final item = reportData.items[index];
-                                return DataRow(
-                                  cells: [
-                                    DataCell(Text((index + 1).toString())),
-                                    DataCell(Text(item.namaProduk)),
-                                    DataCell(
-                                      Text('${item.totalKuantitas} Porsi'),
-                                    ),
-                                    DataCell(
-                                      Text(
-                                        currencyFormatter.format(
-                                          item.totalPendapatan,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            )..add(
-                              DataRow(
-                                cells: [
-                                  const DataCell(Text('')),
-                                  const DataCell(Text('')),
-                                  const DataCell(
-                                    Text(
-                                      'TOTAL',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      currencyFormatter.format(
-                                        reportData.totalPenjualan,
-                                      ),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                      columns: const [
+                        DataColumn(label: Text('No')),
+                        DataColumn(label: Text('Nama Menu')),
+                        DataColumn(label: Text('Jml Terjual')),
+                        DataColumn(label: Text('Total'), numeric: true),
+                      ],
+                      rows: List<DataRow>.generate(reportData.items.length, (
+                        index,
+                      ) {
+                        final item = reportData.items[index];
+                        return DataRow(
+                          cells: [
+                            DataCell(Text((index + 1).toString())),
+                            DataCell(Text(item.namaProduk)),
+                            DataCell(Text('${item.totalKuantitas} Porsi')),
+                            DataCell(
+                              Text(
+                                currencyFormatter.format(item.totalPendapatan),
                               ),
                             ),
-                          ),
+                          ],
+                        );
+                      })..add(
+                        DataRow(
+                          cells: [
+                            const DataCell(Text('')),
+                            const DataCell(Text('')),
+                            const DataCell(
+                              Text(
+                                'TOTAL',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataCell(
+                              Text(
+                                currencyFormatter.format(
+                                  reportData.totalPenjualan,
+                                ),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   );
                 },
               ),

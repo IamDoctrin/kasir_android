@@ -74,9 +74,12 @@ abstract class TransaksiDao {
   @Query('DELETE FROM Transaksi WHERE id = :id')
   Future<void> deleteTransaksiById(int id);
 
-  @Query(
-    'SELECT COUNT(id) FROM Transaksi WHERE waktu_transaksi >= :startOfDay AND waktu_transaksi < :endOfDay',
-  )
+  @Query('''
+    SELECT COUNT(id) FROM Transaksi 
+    WHERE waktu_transaksi >= :startOfDay 
+    AND waktu_transaksi < :endOfDay
+    AND status = 'Closed'
+    ''')
   Future<int?> countTransactionsForToday(int startOfDay, int endOfDay);
 
   @Query('''
@@ -85,13 +88,25 @@ abstract class TransaksiDao {
   ''')
   Future<int?> getTotalPpnByDateRange(int startDate, int endDate);
 
-  @Query(
-    'SELECT * FROM Transaksi WHERE waktu_transaksi BETWEEN :startDate AND :endDate ORDER BY waktu_transaksi DESC',
-  )
+  @Query('''
+    SELECT * FROM Transaksi 
+    WHERE waktu_transaksi BETWEEN :startDate AND :endDate 
+    ORDER BY
+      CASE status
+        WHEN 'Open' THEN 1
+        ELSE 2
+      END,
+      waktu_transaksi DESC
+    ''')
   Future<List<Transaksi>> findTransaksiByDateRange(int startDate, int endDate);
 
   @Query(
     "SELECT * FROM Transaksi WHERE status = 'Closed' AND (is_synced = 0 OR is_synced IS NULL)",
   )
   Future<List<Transaksi>> findUnsyncedTransactions();
+
+  @Query(
+    'SELECT * FROM Transaksi WHERE nomorTransaksi = :nomorTransaksi LIMIT 1',
+  )
+  Future<Transaksi?> findTransaksiByNomor(String nomorTransaksi);
 }

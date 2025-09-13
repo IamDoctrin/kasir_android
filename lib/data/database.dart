@@ -37,8 +37,17 @@ final MIGRATION_4_5 = Migration(4, 5, (database) async {
   );
 });
 
+final MIGRATION_5_6 = Migration(5, 6, (database) async {
+  await database.execute(
+    'ALTER TABLE Transaksi ADD COLUMN jumlah_bayar INTEGER',
+  );
+  await database.execute(
+    'ALTER TABLE Transaksi ADD COLUMN jumlah_kembali INTEGER',
+  );
+});
+
 @TypeConverters([DateTimeConverter])
-@Database(version: 5, entities: [Kategori, Produk, Transaksi, DetailTransaksi])
+@Database(version: 6, entities: [Kategori, Produk, Transaksi, DetailTransaksi])
 abstract class AppDatabase extends FloorDatabase {
   KategoriDao get kategoriDao;
   ProdukDao get produkDao;

@@ -86,7 +86,7 @@ class _$AppDatabase extends AppDatabase {
     Callback? callback,
   ]) async {
     final databaseOptions = sqflite.OpenDatabaseOptions(
-      version: 5,
+      version: 6,
       onConfigure: (database) async {
         await database.execute('PRAGMA foreign_keys = ON');
         await callback?.onConfigure?.call(database);
@@ -106,7 +106,7 @@ class _$AppDatabase extends AppDatabase {
         await database.execute(
             'CREATE TABLE IF NOT EXISTS `Produk` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `nama` TEXT NOT NULL, `harga` INTEGER NOT NULL, `satuan` TEXT NOT NULL, `kategori_id` INTEGER NOT NULL, FOREIGN KEY (`kategori_id`) REFERENCES `Kategori` (`id`) ON UPDATE NO ACTION ON DELETE NO ACTION)');
         await database.execute(
-            'CREATE TABLE IF NOT EXISTS `Transaksi` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `waktu_transaksi` INTEGER NOT NULL, `subtotal` INTEGER NOT NULL, `diskon` INTEGER NOT NULL, `ppn_persentase` REAL NOT NULL, `ppn_jumlah` INTEGER NOT NULL, `grand_total` INTEGER NOT NULL, `is_synced` INTEGER, `status` TEXT NOT NULL, `nomorTransaksi` TEXT, `lokasiMeja` TEXT, `nomorMeja` INTEGER, `metodePembayaran` TEXT)');
+            'CREATE TABLE IF NOT EXISTS `Transaksi` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `waktu_transaksi` INTEGER NOT NULL, `subtotal` INTEGER NOT NULL, `diskon` INTEGER NOT NULL, `ppn_persentase` REAL NOT NULL, `ppn_jumlah` INTEGER NOT NULL, `grand_total` INTEGER NOT NULL, `is_synced` INTEGER, `jumlah_bayar` INTEGER, `jumlah_kembali` INTEGER, `status` TEXT NOT NULL, `nomorTransaksi` TEXT, `lokasiMeja` TEXT, `nomorMeja` INTEGER, `metodePembayaran` TEXT)');
         await database.execute(
             'CREATE TABLE IF NOT EXISTS `DetailTransaksi` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `transaksi_id` INTEGER NOT NULL, `produk_id` INTEGER NOT NULL, `kuantitas` INTEGER NOT NULL, `harga_saat_transaksi` INTEGER NOT NULL, FOREIGN KEY (`transaksi_id`) REFERENCES `Transaksi` (`id`) ON UPDATE NO ACTION ON DELETE NO ACTION, FOREIGN KEY (`produk_id`) REFERENCES `Produk` (`id`) ON UPDATE NO ACTION ON DELETE NO ACTION)');
 
@@ -256,6 +256,18 @@ class _$ProdukDao extends ProdukDao {
   }
 
   @override
+  Future<Produk?> findProdukByName(String nama) async {
+    return _queryAdapter.query('SELECT * FROM Produk WHERE nama = ?1 LIMIT 1',
+        mapper: (Map<String, Object?> row) => Produk(
+            id: row['id'] as int?,
+            nama: row['nama'] as String,
+            harga: row['harga'] as int,
+            satuan: row['satuan'] as String,
+            kategoriId: row['kategori_id'] as int),
+        arguments: [nama]);
+  }
+
+  @override
   Future<void> insertProduk(Produk produk) async {
     await _produkInsertionAdapter.insert(produk, OnConflictStrategy.abort);
   }
@@ -289,6 +301,8 @@ class _$TransaksiDao extends TransaksiDao {
                   'ppn_jumlah': item.ppnJumlah,
                   'grand_total': item.grandTotal,
                   'is_synced': item.isSynced,
+                  'jumlah_bayar': item.jumlahBayar,
+                  'jumlah_kembali': item.jumlahKembali,
                   'status': item.status,
                   'nomorTransaksi': item.nomorTransaksi,
                   'lokasiMeja': item.lokasiMeja,
@@ -309,6 +323,8 @@ class _$TransaksiDao extends TransaksiDao {
                   'ppn_jumlah': item.ppnJumlah,
                   'grand_total': item.grandTotal,
                   'is_synced': item.isSynced,
+                  'jumlah_bayar': item.jumlahBayar,
+                  'jumlah_kembali': item.jumlahKembali,
                   'status': item.status,
                   'nomorTransaksi': item.nomorTransaksi,
                   'lokasiMeja': item.lokasiMeja,
@@ -344,7 +360,9 @@ class _$TransaksiDao extends TransaksiDao {
             lokasiMeja: row['lokasiMeja'] as String?,
             nomorMeja: row['nomorMeja'] as int?,
             metodePembayaran: row['metodePembayaran'] as String?,
-            isSynced: row['is_synced'] as int?));
+            isSynced: row['is_synced'] as int?,
+            jumlahBayar: row['jumlah_bayar'] as int?,
+            jumlahKembali: row['jumlah_kembali'] as int?));
   }
 
   @override
@@ -354,7 +372,7 @@ class _$TransaksiDao extends TransaksiDao {
   ) async {
     return _queryAdapter.queryList(
         'SELECT * FROM Transaksi WHERE waktu_transaksi BETWEEN ?1 AND ?2 ORDER BY waktu_transaksi DESC',
-        mapper: (Map<String, Object?> row) => Transaksi(id: row['id'] as int?, waktuTransaksi: _dateTimeConverter.decode(row['waktu_transaksi'] as int), subtotal: row['subtotal'] as int, diskon: row['diskon'] as int, ppnPersentase: row['ppn_persentase'] as double, ppnJumlah: row['ppn_jumlah'] as int, grandTotal: row['grand_total'] as int, status: row['status'] as String, nomorTransaksi: row['nomorTransaksi'] as String?, lokasiMeja: row['lokasiMeja'] as String?, nomorMeja: row['nomorMeja'] as int?, metodePembayaran: row['metodePembayaran'] as String?, isSynced: row['is_synced'] as int?),
+        mapper: (Map<String, Object?> row) => Transaksi(id: row['id'] as int?, waktuTransaksi: _dateTimeConverter.decode(row['waktu_transaksi'] as int), subtotal: row['subtotal'] as int, diskon: row['diskon'] as int, ppnPersentase: row['ppn_persentase'] as double, ppnJumlah: row['ppn_jumlah'] as int, grandTotal: row['grand_total'] as int, status: row['status'] as String, nomorTransaksi: row['nomorTransaksi'] as String?, lokasiMeja: row['lokasiMeja'] as String?, nomorMeja: row['nomorMeja'] as int?, metodePembayaran: row['metodePembayaran'] as String?, isSynced: row['is_synced'] as int?, jumlahBayar: row['jumlah_bayar'] as int?, jumlahKembali: row['jumlah_kembali'] as int?),
         arguments: [startOfDay, endOfDay]);
   }
 
@@ -375,7 +393,9 @@ class _$TransaksiDao extends TransaksiDao {
             lokasiMeja: row['lokasiMeja'] as String?,
             nomorMeja: row['nomorMeja'] as int?,
             metodePembayaran: row['metodePembayaran'] as String?,
-            isSynced: row['is_synced'] as int?),
+            isSynced: row['is_synced'] as int?,
+            jumlahBayar: row['jumlah_bayar'] as int?,
+            jumlahKembali: row['jumlah_kembali'] as int?),
         arguments: [id]);
   }
 
@@ -391,7 +411,7 @@ class _$TransaksiDao extends TransaksiDao {
     int endOfDay,
   ) async {
     return _queryAdapter.query(
-        'SELECT COUNT(id) FROM Transaksi WHERE waktu_transaksi >= ?1 AND waktu_transaksi < ?2',
+        'SELECT COUNT(id) FROM Transaksi      WHERE waktu_transaksi >= ?1      AND waktu_transaksi < ?2     AND status = \'Closed\'',
         mapper: (Map<String, Object?> row) => row.values.first as int,
         arguments: [startOfDay, endOfDay]);
   }
@@ -413,8 +433,8 @@ class _$TransaksiDao extends TransaksiDao {
     int endDate,
   ) async {
     return _queryAdapter.queryList(
-        'SELECT * FROM Transaksi WHERE waktu_transaksi BETWEEN ?1 AND ?2 ORDER BY waktu_transaksi DESC',
-        mapper: (Map<String, Object?> row) => Transaksi(id: row['id'] as int?, waktuTransaksi: _dateTimeConverter.decode(row['waktu_transaksi'] as int), subtotal: row['subtotal'] as int, diskon: row['diskon'] as int, ppnPersentase: row['ppn_persentase'] as double, ppnJumlah: row['ppn_jumlah'] as int, grandTotal: row['grand_total'] as int, status: row['status'] as String, nomorTransaksi: row['nomorTransaksi'] as String?, lokasiMeja: row['lokasiMeja'] as String?, nomorMeja: row['nomorMeja'] as int?, metodePembayaran: row['metodePembayaran'] as String?, isSynced: row['is_synced'] as int?),
+        'SELECT * FROM Transaksi      WHERE waktu_transaksi BETWEEN ?1 AND ?2      ORDER BY       CASE status         WHEN \'Open\' THEN 1         ELSE 2       END,       waktu_transaksi DESC',
+        mapper: (Map<String, Object?> row) => Transaksi(id: row['id'] as int?, waktuTransaksi: _dateTimeConverter.decode(row['waktu_transaksi'] as int), subtotal: row['subtotal'] as int, diskon: row['diskon'] as int, ppnPersentase: row['ppn_persentase'] as double, ppnJumlah: row['ppn_jumlah'] as int, grandTotal: row['grand_total'] as int, status: row['status'] as String, nomorTransaksi: row['nomorTransaksi'] as String?, lokasiMeja: row['lokasiMeja'] as String?, nomorMeja: row['nomorMeja'] as int?, metodePembayaran: row['metodePembayaran'] as String?, isSynced: row['is_synced'] as int?, jumlahBayar: row['jumlah_bayar'] as int?, jumlahKembali: row['jumlah_kembali'] as int?),
         arguments: [startDate, endDate]);
   }
 
@@ -436,7 +456,33 @@ class _$TransaksiDao extends TransaksiDao {
             lokasiMeja: row['lokasiMeja'] as String?,
             nomorMeja: row['nomorMeja'] as int?,
             metodePembayaran: row['metodePembayaran'] as String?,
-            isSynced: row['is_synced'] as int?));
+            isSynced: row['is_synced'] as int?,
+            jumlahBayar: row['jumlah_bayar'] as int?,
+            jumlahKembali: row['jumlah_kembali'] as int?));
+  }
+
+  @override
+  Future<Transaksi?> findTransaksiByNomor(String nomorTransaksi) async {
+    return _queryAdapter.query(
+        'SELECT * FROM Transaksi WHERE nomorTransaksi = ?1 LIMIT 1',
+        mapper: (Map<String, Object?> row) => Transaksi(
+            id: row['id'] as int?,
+            waktuTransaksi:
+                _dateTimeConverter.decode(row['waktu_transaksi'] as int),
+            subtotal: row['subtotal'] as int,
+            diskon: row['diskon'] as int,
+            ppnPersentase: row['ppn_persentase'] as double,
+            ppnJumlah: row['ppn_jumlah'] as int,
+            grandTotal: row['grand_total'] as int,
+            status: row['status'] as String,
+            nomorTransaksi: row['nomorTransaksi'] as String?,
+            lokasiMeja: row['lokasiMeja'] as String?,
+            nomorMeja: row['nomorMeja'] as int?,
+            metodePembayaran: row['metodePembayaran'] as String?,
+            isSynced: row['is_synced'] as int?,
+            jumlahBayar: row['jumlah_bayar'] as int?,
+            jumlahKembali: row['jumlah_kembali'] as int?),
+        arguments: [nomorTransaksi]);
   }
 
   @override
