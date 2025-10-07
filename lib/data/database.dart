@@ -46,8 +46,14 @@ final MIGRATION_5_6 = Migration(5, 6, (database) async {
   );
 });
 
+final MIGRATION_6_7 = Migration(6, 7, (database) async {
+  await database.execute(
+    'ALTER TABLE DetailTransaksi ADD COLUMN namaProduk TEXT NOT NULL DEFAULT ""',
+  );
+});
+
 @TypeConverters([DateTimeConverter])
-@Database(version: 6, entities: [Kategori, Produk, Transaksi, DetailTransaksi])
+@Database(version: 7, entities: [Kategori, Produk, Transaksi, DetailTransaksi])
 abstract class AppDatabase extends FloorDatabase {
   KategoriDao get kategoriDao;
   ProdukDao get produkDao;

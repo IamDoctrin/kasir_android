@@ -86,7 +86,7 @@ class _$AppDatabase extends AppDatabase {
     Callback? callback,
   ]) async {
     final databaseOptions = sqflite.OpenDatabaseOptions(
-      version: 6,
+      version: 7,
       onConfigure: (database) async {
         await database.execute('PRAGMA foreign_keys = ON');
         await callback?.onConfigure?.call(database);
@@ -108,7 +108,7 @@ class _$AppDatabase extends AppDatabase {
         await database.execute(
             'CREATE TABLE IF NOT EXISTS `Transaksi` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `waktu_transaksi` INTEGER NOT NULL, `subtotal` INTEGER NOT NULL, `diskon` INTEGER NOT NULL, `ppn_persentase` REAL NOT NULL, `ppn_jumlah` INTEGER NOT NULL, `grand_total` INTEGER NOT NULL, `is_synced` INTEGER, `jumlah_bayar` INTEGER, `jumlah_kembali` INTEGER, `status` TEXT NOT NULL, `nomorTransaksi` TEXT, `lokasiMeja` TEXT, `nomorMeja` INTEGER, `metodePembayaran` TEXT)');
         await database.execute(
-            'CREATE TABLE IF NOT EXISTS `DetailTransaksi` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `transaksi_id` INTEGER NOT NULL, `produk_id` INTEGER NOT NULL, `kuantitas` INTEGER NOT NULL, `harga_saat_transaksi` INTEGER NOT NULL, FOREIGN KEY (`transaksi_id`) REFERENCES `Transaksi` (`id`) ON UPDATE NO ACTION ON DELETE NO ACTION, FOREIGN KEY (`produk_id`) REFERENCES `Produk` (`id`) ON UPDATE NO ACTION ON DELETE NO ACTION)');
+            'CREATE TABLE IF NOT EXISTS `DetailTransaksi` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `transaksi_id` INTEGER NOT NULL, `produk_id` INTEGER NOT NULL, `kuantitas` INTEGER NOT NULL, `harga_saat_transaksi` INTEGER NOT NULL, `namaProduk` TEXT NOT NULL, FOREIGN KEY (`transaksi_id`) REFERENCES `Transaksi` (`id`) ON UPDATE NO ACTION ON DELETE NO ACTION, FOREIGN KEY (`produk_id`) REFERENCES `Produk` (`id`) ON UPDATE NO ACTION ON DELETE NO ACTION)');
 
         await callback?.onCreate?.call(database, version);
       },
@@ -268,8 +268,9 @@ class _$ProdukDao extends ProdukDao {
   }
 
   @override
-  Future<void> insertProduk(Produk produk) async {
-    await _produkInsertionAdapter.insert(produk, OnConflictStrategy.abort);
+  Future<int> insertProduk(Produk produk) {
+    return _produkInsertionAdapter.insertAndReturnId(
+        produk, OnConflictStrategy.abort);
   }
 
   @override
@@ -510,7 +511,8 @@ class _$DetailTransaksiDao extends DetailTransaksiDao {
                   'transaksi_id': item.transaksiId,
                   'produk_id': item.produkId,
                   'kuantitas': item.kuantitas,
-                  'harga_saat_transaksi': item.hargaSaatTransaksi
+                  'harga_saat_transaksi': item.hargaSaatTransaksi,
+                  'namaProduk': item.namaProduk
                 });
 
   final sqflite.DatabaseExecutor database;
@@ -530,7 +532,8 @@ class _$DetailTransaksiDao extends DetailTransaksiDao {
             transaksiId: row['transaksi_id'] as int,
             produkId: row['produk_id'] as int,
             kuantitas: row['kuantitas'] as int,
-            hargaSaatTransaksi: row['harga_saat_transaksi'] as int),
+            hargaSaatTransaksi: row['harga_saat_transaksi'] as int,
+            namaProduk: row['namaProduk'] as String),
         arguments: [transaksiId]);
   }
 

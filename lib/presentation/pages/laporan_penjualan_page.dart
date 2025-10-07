@@ -67,17 +67,16 @@ class _LaporanPenjualanPageState extends State<LaporanPenjualanPage> {
         ).millisecondsSinceEpoch;
 
     const sql = '''
-      SELECT
-        P.nama AS namaProduk,
-        SUM(DT.kuantitas) as totalKuantitas,
-        SUM(DT.kuantitas * DT.harga_saat_transaksi) as totalPendapatan
-      FROM DetailTransaksi AS DT
-      INNER JOIN Produk AS P ON P.id = DT.produk_id
-      INNER JOIN Transaksi AS T ON T.id = DT.transaksi_id
-      WHERE T.status = 'Closed' AND T.waktu_transaksi BETWEEN ? AND ?
-      GROUP BY P.nama
-      ORDER BY totalPendapatan DESC
-    ''';
+    SELECT
+      DT.namaProduk AS namaProduk,
+      SUM(DT.kuantitas) as totalKuantitas,
+      SUM(DT.kuantitas * DT.harga_saat_transaksi) as totalPendapatan
+    FROM DetailTransaksi AS DT
+    INNER JOIN Transaksi AS T ON T.id = DT.transaksi_id
+    WHERE T.status = 'Closed' AND T.waktu_transaksi BETWEEN ? AND ?
+    GROUP BY DT.namaProduk
+    ORDER BY totalPendapatan DESC
+  ''';
 
     final result = await db.database.rawQuery(sql, [startMillis, endMillis]);
 

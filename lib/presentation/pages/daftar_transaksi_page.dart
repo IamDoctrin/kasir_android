@@ -9,6 +9,8 @@ import '../../data/database_instance.dart';
 import '../../data/entities/transaksi.dart';
 import 'receipt_preview_page.dart';
 import '../widgets/last_sync_widget.dart';
+import '../../data/entities/produk.dart';
+import '../widgets/pin_dialog.dart';
 
 class DaftarTransaksiPage extends StatefulWidget {
   const DaftarTransaksiPage({super.key});
@@ -167,8 +169,17 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage>
 
     final items =
         details.map((detail) {
+          final existingProduk = produkMap[detail.produkId];
+
           return CartItem(
-            produk: produkMap[detail.produkId]!,
+            produk:
+                existingProduk ??
+                Produk(
+                  id: detail.produkId,
+                  nama: detail.namaProduk,
+                  harga: detail.hargaSaatTransaksi,
+                  kategoriId: 0,
+                ),
             kuantitas: detail.kuantitas,
           );
         }).toList();
@@ -228,13 +239,64 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage>
     );
   }
 
+  void _handleDeleteClosedTransaction(Transaksi transaksi) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => PinDialog(
+            onPinVerified: () async {
+              // Setelah PIN terverifikasi, lanjutkan proses hapus
+              final messenger = ScaffoldMessenger.of(context);
+              messenger.showSnackBar(
+                const SnackBar(content: Text('Menghapus transaksi...')),
+              );
+
+              // 1. Hapus di server
+              final serverSuccess = await ApiService().hapusTransaksiDiServer(
+                transaksi.nomorTransaksi!,
+              );
+
+              if (serverSuccess) {
+                // 2. Jika di server berhasil dihapus, hapus di lokal
+                final db = await DatabaseInstance.database;
+                await db.detailTransaksiDao.deleteDetailByTransaksiId(
+                  transaksi.id!,
+                );
+                await db.transaksiDao.deleteTransaksiById(transaksi.id!);
+
+                if (mounted) {
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Transaksi berhasil dihapus.'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+                _runFilter();
+              } else {
+                if (mounted) {
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Gagal menghapus di server. Cek koneksi internet.',
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+          ),
+    );
+  }
+
   void _showDownloadProgressDialog() {
     final downloadStream = ApiService().ambilDanSimpanTransaksiDariWeb();
-    String lastMessage = ""; // Simpan pesan terakhir jika stream selesai
+    String lastMessage = "";
 
     showDialog(
       context: context,
-      barrierDismissible: false, // Jangan biarkan dialog ditutup paksa
+      barrierDismissible: false,
       builder: (dialogContext) {
         return StreamBuilder<String>(
           stream: downloadStream,
@@ -335,8 +397,7 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage>
         actions: [
           IconButton(
             icon: const Icon(Icons.cloud_download_outlined),
-            onPressed:
-                _showDownloadProgressDialog, // Panggil fungsi dialog baru
+            onPressed: _showDownloadProgressDialog, // Panggil dialog baru
             tooltip: 'Download Data dari Server',
           ),
 
@@ -506,101 +567,7 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage>
                     return Card(
                       elevation: 2,
                       margin: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 10.0,
-                          horizontal: 16.0,
-                        ),
-                        leading: CircleAvatar(
-                          backgroundColor: statusColor.withOpacity(0.1),
-                          child: Icon(
-                            isOpen ? Icons.edit_note : Icons.receipt_long,
-                            color: statusColor,
-                          ),
-                        ),
-                        title: Row(
-                          children: [
-                            Text(
-                              displayTitle, // Menggunakan variabel baru
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            if (!isOpen)
-                              Tooltip(
-                                message:
-                                    transaksi.isSynced == 1
-                                        ? 'Sudah disinkronkan'
-                                        : 'Menunggu sinkronisasi',
-                                child: Icon(
-                                  transaksi.isSynced == 1
-                                      ? Icons.cloud_done_outlined
-                                      : Icons.cloud_upload_outlined,
-                                  size: 16,
-                                  color:
-                                      transaksi.isSynced == 1
-                                          ? Colors.green.shade600
-                                          : Colors.grey.shade600,
-                                ),
-                              ),
-                          ],
-                        ),
-                        subtitle: Text(
-                          subtitleText.replaceAll(' • •', ' •').trim(),
-                        ),
-                        trailing: SizedBox(
-                          width: 150,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    currencyFormatter.format(
-                                      transaksi.grandTotal,
-                                    ),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: statusColor.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      transaksi.status.toUpperCase(),
-                                      style: TextStyle(
-                                        color: statusColor,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (isOpen)
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete_outline,
-                                    color: Colors.red,
-                                  ),
-                                  onPressed:
-                                      () => _deleteTransaction(transaksi),
-                                  tooltip: 'Hapus Transaksi',
-                                ),
-                            ],
-                          ),
-                        ),
+                      child: InkWell(
                         onTap: () {
                           if (isOpen) {
                             _navigateToInputTransaksi(
@@ -610,6 +577,117 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage>
                             _navigateToPreview(transaksi);
                           }
                         },
+                        onLongPress: () {
+                          if (!isOpen) {
+                            // Hanya berlaku untuk transaksi "Closed"
+                            _handleDeleteClosedTransaction(transaksi);
+                          }
+                        },
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 10.0,
+                            horizontal: 16.0,
+                          ),
+                          leading: CircleAvatar(
+                            backgroundColor: statusColor.withOpacity(0.1),
+                            child: Icon(
+                              isOpen ? Icons.edit_note : Icons.receipt_long,
+                              color: statusColor,
+                            ),
+                          ),
+                          title: Row(
+                            children: [
+                              Text(
+                                displayTitle,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              if (!isOpen)
+                                Tooltip(
+                                  message:
+                                      transaksi.isSynced == 1
+                                          ? 'Sudah disinkronkan'
+                                          : 'Menunggu sinkronisasi',
+                                  child: Icon(
+                                    transaksi.isSynced == 1
+                                        ? Icons.cloud_done_outlined
+                                        : Icons.cloud_upload_outlined,
+                                    size: 16,
+                                    color:
+                                        transaksi.isSynced == 1
+                                            ? Colors.green.shade600
+                                            : Colors.grey.shade600,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          subtitle: Text(
+                            subtitleText.replaceAll(' • •', ' •').trim(),
+                          ),
+                          trailing: SizedBox(
+                            width: 150,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      currencyFormatter.format(
+                                        transaksi.grandTotal,
+                                      ),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        transaksi.status.toUpperCase(),
+                                        style: TextStyle(
+                                          color: statusColor,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (isOpen)
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.red,
+                                    ),
+                                    onPressed:
+                                        () => _deleteTransaction(transaksi),
+                                    tooltip: 'Hapus Transaksi',
+                                  ),
+                              ],
+                            ),
+                          ),
+                          onTap: () {
+                            if (isOpen) {
+                              _navigateToInputTransaksi(
+                                transactionId: transaksi.id,
+                              );
+                            } else {
+                              _navigateToPreview(transaksi);
+                            }
+                          },
+                        ),
                       ),
                     );
                   },
