@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class PinDialog extends StatefulWidget {
-  final String correctPin = '1234'; //Ganti PIN
+  final String correctPin = '2024'; //Ganti PIN (masih hardcoded)
   final Function() onPinVerified;
 
   const PinDialog({super.key, required this.onPinVerified});

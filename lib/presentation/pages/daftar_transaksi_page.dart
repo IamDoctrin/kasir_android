@@ -416,12 +416,24 @@ class _DaftarTransaksiPageState extends State<DaftarTransaksiPage>
 
               if (mounted) {
                 if (result.failureCount > 0) {
+                  // Gabungkan semua pesan error menjadi satu string dengan baris baru
+                  final errorDetails = result.errorMessages.join('\n');
                   messenger.showSnackBar(
                     SnackBar(
                       content: Text(
-                        '${result.failureCount} transaksi gagal disinkronkan.',
+                        '${result.failureCount} transaksi gagal disinkronkan.\n\nPenyebab:\n$errorDetails',
+                        maxLines: 10, // Beri ruang lebih untuk pesan error
+                        overflow: TextOverflow.ellipsis,
                       ),
                       backgroundColor: Colors.red.shade700,
+                      duration: const Duration(seconds: 15), // Durasi
+                      action: SnackBarAction(
+                        label: 'TUTUP',
+                        textColor: Colors.white,
+                        onPressed: () {
+                          messenger.hideCurrentSnackBar();
+                        },
+                      ),
                     ),
                   );
                 } else if (result.hasUnsyncedData) {

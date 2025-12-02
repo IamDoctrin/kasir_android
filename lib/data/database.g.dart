@@ -344,6 +344,14 @@ class _$TransaksiDao extends TransaksiDao {
   final UpdateAdapter<Transaksi> _transaksiUpdateAdapter;
 
   @override
+  Future<Transaksi?> findLastTransactionByPrefix(String prefix) async {
+    return _queryAdapter.query(
+        'SELECT * FROM Transaksi WHERE nomorTransaksi LIKE ?1 ORDER BY nomorTransaksi DESC LIMIT 1',
+        mapper: (Map<String, Object?> row) => Transaksi(id: row['id'] as int?, waktuTransaksi: _dateTimeConverter.decode(row['waktu_transaksi'] as int), subtotal: row['subtotal'] as int, diskon: row['diskon'] as int, ppnPersentase: row['ppn_persentase'] as double, ppnJumlah: row['ppn_jumlah'] as int, grandTotal: row['grand_total'] as int, status: row['status'] as String, nomorTransaksi: row['nomorTransaksi'] as String?, lokasiMeja: row['lokasiMeja'] as String?, nomorMeja: row['nomorMeja'] as int?, metodePembayaran: row['metodePembayaran'] as String?, isSynced: row['is_synced'] as int?, jumlahBayar: row['jumlah_bayar'] as int?, jumlahKembali: row['jumlah_kembali'] as int?),
+        arguments: [prefix]);
+  }
+
+  @override
   Future<List<Transaksi>> findAllTransaksi() async {
     return _queryAdapter.queryList(
         'SELECT id, waktu_transaksi, subtotal, diskon, ppn_persentase, ppn_jumlah, grand_total, status, nomorTransaksi, lokasiMeja, nomorMeja, metodePembayaran FROM Transaksi ORDER BY waktu_transaksi DESC',
@@ -404,17 +412,6 @@ class _$TransaksiDao extends TransaksiDao {
   Future<void> deleteTransaksiById(int id) async {
     await _queryAdapter
         .queryNoReturn('DELETE FROM Transaksi WHERE id = ?1', arguments: [id]);
-  }
-
-  @override
-  Future<int?> countTransactionsForToday(
-    int startOfDay,
-    int endOfDay,
-  ) async {
-    return _queryAdapter.query(
-        'SELECT COUNT(id) FROM Transaksi      WHERE waktu_transaksi >= ?1      AND waktu_transaksi < ?2     AND status = \'Closed\'',
-        mapper: (Map<String, Object?> row) => row.values.first as int,
-        arguments: [startOfDay, endOfDay]);
   }
 
   @override

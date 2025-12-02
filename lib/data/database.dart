@@ -205,7 +205,7 @@ Future<void> seedDatabase(sqflite.Database database) async {
   );
 
   // --- MENU MINUMAN ---
-  // Coffe
+  // Coffee
   await database.execute(
     'INSERT INTO Produk (nama, harga, satuan, kategori_id) VALUES (?, ?, ?, ?)',
     ['Kopi Hitam Penuh', 8000, 'Porsi', 2],
@@ -266,7 +266,7 @@ Future<void> seedDatabase(sqflite.Database database) async {
     'INSERT INTO Produk (nama, harga, satuan, kategori_id) VALUES (?, ?, ?, ?)',
     ['Kopi Ginseng (D)', 17000, 'Porsi', 2],
   );
-  // Non Coffe
+  // Non Coffee
   await database.execute(
     'INSERT INTO Produk (nama, harga, satuan, kategori_id) VALUES (?, ?, ?, ?)',
     ['Teh Telur', 12000, 'Porsi', 2],
