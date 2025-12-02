@@ -46,8 +46,14 @@ final MIGRATION_5_6 = Migration(5, 6, (database) async {
   );
 });
 
+final MIGRATION_6_7 = Migration(6, 7, (database) async {
+  await database.execute(
+    'ALTER TABLE DetailTransaksi ADD COLUMN namaProduk TEXT NOT NULL DEFAULT ""',
+  );
+});
+
 @TypeConverters([DateTimeConverter])
-@Database(version: 6, entities: [Kategori, Produk, Transaksi, DetailTransaksi])
+@Database(version: 7, entities: [Kategori, Produk, Transaksi, DetailTransaksi])
 abstract class AppDatabase extends FloorDatabase {
   KategoriDao get kategoriDao;
   ProdukDao get produkDao;
@@ -199,7 +205,7 @@ Future<void> seedDatabase(sqflite.Database database) async {
   );
 
   // --- MENU MINUMAN ---
-  // Coffe
+  // Coffee
   await database.execute(
     'INSERT INTO Produk (nama, harga, satuan, kategori_id) VALUES (?, ?, ?, ?)',
     ['Kopi Hitam Penuh', 8000, 'Porsi', 2],
@@ -260,7 +266,7 @@ Future<void> seedDatabase(sqflite.Database database) async {
     'INSERT INTO Produk (nama, harga, satuan, kategori_id) VALUES (?, ?, ?, ?)',
     ['Kopi Ginseng (D)', 17000, 'Porsi', 2],
   );
-  // Non Coffe
+  // Non Coffee
   await database.execute(
     'INSERT INTO Produk (nama, harga, satuan, kategori_id) VALUES (?, ?, ?, ?)',
     ['Teh Telur', 12000, 'Porsi', 2],

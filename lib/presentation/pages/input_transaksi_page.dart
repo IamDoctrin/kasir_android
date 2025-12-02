@@ -141,13 +141,11 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
       final existingTrx = await db.transaksiDao.findTransaksiById(
         widget.editingTransactionId!,
       );
-      // Pakai nomor Trx yang ada (seharusnya null jika alurnya benar)
       nomorTransaksiValue = existingTrx?.nomorTransaksi;
       // Pakai waktu transaksi ASLI (saat pertama kali dibuat), jangan di-update
       waktuTransaksiValue = existingTrx?.waktuTransaksi ?? DateTime.now();
     } else {
       // Jika transaksi BARU (status Open)
-      // JANGAN BUAT NOMOR TRX DULU
       nomorTransaksiValue = null;
       // Pakai waktu sekarang sebagai waktu pembuatan
       waktuTransaksiValue = DateTime.now();
@@ -182,6 +180,7 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
             produkId: item.produk.id!,
             kuantitas: item.kuantitas,
             hargaSaatTransaksi: item.produk.harga,
+            namaProduk: item.produk.nama,
           ),
         );
       }
@@ -197,6 +196,7 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
             produkId: item.produk.id!,
             kuantitas: item.kuantitas,
             hargaSaatTransaksi: item.produk.harga,
+            namaProduk: item.produk.nama,
           ),
         );
       }
@@ -241,8 +241,7 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                 final int totalForReceipt = cart.grandTotal;
                 final double change = paymentAmount - totalForReceipt;
 
-                final now =
-                    DateTime.now(); // Ini adalah waktu 'Closing' transaksi
+                final now = DateTime.now();
                 String nomorTransaksiValue;
 
                 if (widget.editingTransactionId == null) {
@@ -255,23 +254,20 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                     widget.editingTransactionId!,
                   );
 
-                  // Cek apakah sudah punya nomor (seharusnya BELUM jika dari 'Open')
-                  // Ini adalah cek null-safe yang sudah diperbaiki
+                  // Cek apakah sudah punya nomor (kalau masih Open harusnya tidak ada)
                   if ((existingTrx?.nomorTransaksi ?? '').isEmpty) {
-                    // Jika BELUM punya nomor (karena tadinya 'Open'), GENERATE BARU.
+                    // Jika BELUM punya nomor (karena tadinya 'Open'), BUAT BARU.
                     nomorTransaksiValue = await db.transaksiDao
                         .generateNewTransactionNumber(db);
                   } else {
-                    // Jika sudah punya (aneh, tapi aman), pakai lagi nomor yg ada.
-                    // Ini adalah perbaikan null-safe untuk blok 'else'
+                    // Jika sudah punya, pakai lagi nomor yg ada.
                     nomorTransaksiValue = existingTrx!.nomorTransaksi!;
                   }
                 }
 
                 final trx = Transaksi(
                   id: widget.editingTransactionId,
-                  waktuTransaksi:
-                      now, // Waktu transaksi di-update ke waktu pembayaran/closing
+                  waktuTransaksi: now,
                   subtotal: subtotalForReceipt,
                   diskon: 0,
                   ppnPersentase: cart.isPpnEnabled ? 11.0 : 0.0,
@@ -310,6 +306,7 @@ class _InputTransaksiPageState extends State<InputTransaksiPage> {
                       produkId: item.produk.id!,
                       kuantitas: item.kuantitas,
                       hargaSaatTransaksi: item.produk.harga,
+                      namaProduk: item.produk.nama,
                     ),
                   );
                 }

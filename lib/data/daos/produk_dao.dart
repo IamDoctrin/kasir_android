@@ -23,7 +23,7 @@ abstract class ProdukDao {
   Future<Produk?> findProdukByName(String nama);
 
   @insert
-  Future<void> insertProduk(Produk produk);
+  Future<int?> insertProduk(Produk produk);
 
   @update
   Future<void> updateProduk(Produk produk);

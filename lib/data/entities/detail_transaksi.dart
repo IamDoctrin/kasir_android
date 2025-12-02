@@ -31,11 +31,14 @@ class DetailTransaksi {
   @ColumnInfo(name: 'harga_saat_transaksi')
   final int hargaSaatTransaksi;
 
+  final String namaProduk;
+
   DetailTransaksi({
     this.id,
     required this.transaksiId,
     required this.produkId,
     required this.kuantitas,
     required this.hargaSaatTransaksi,
+    this.namaProduk = '',
   });
 }

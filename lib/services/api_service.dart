@@ -13,13 +13,22 @@ import '../data/entities/produk.dart';
 class SyncResult {
   final bool hasUnsyncedData;
   final int failureCount;
-  SyncResult({required this.hasUnsyncedData, required this.failureCount});
+  final List<String> errorMessages;
+
+  SyncResult({
+    required this.hasUnsyncedData,
+    required this.failureCount,
+    required this.errorMessages,
+  });
 }
 
 class ApiService {
-  Future<bool> kirimTransaksi(Transaksi transaksi, List<CartItem> items) async {
-    final url = Uri.parse('${ApiConfig.baseUrl}/transaksi');
-
+  // Mengirim data transaksi ke server
+  Future<(bool, String?)> kirimTransaksi(
+    Transaksi transaksi,
+    List<CartItem> items,
+  ) async {
+    var url = Uri.parse('${ApiConfig.baseUrl}/transaksi');
     final body = json.encode({
       'nomorTransaksi': transaksi.nomorTransaksi,
       'waktuTransaksi': transaksi.waktuTransaksi.toIso8601String(),
@@ -45,48 +54,70 @@ class ApiService {
               .toList(),
     });
 
+    final headers = {
+      'Content-Type': 'application/json; charset=UTF-8',
+      'X-Api-Key': ApiConfig.apiKey,
+    };
+
     try {
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-          'X-Api-Key': ApiConfig.apiKey,
-        },
-        body: body,
-      );
+      // Gunakan custom client untuk kontrol redirect
+      final client = http.Client();
+      var request =
+          http.Request('POST', url)
+            ..headers.addAll(headers)
+            ..body = body;
+
+      // Kirim request tanpa auto-redirect
+      final responseStream = await client.send(request);
+      var response = await http.Response.fromStream(responseStream);
+
+      // Cek apakah ada redirect (status code 302)
+      if (response.statusCode == 302) {
+        final newLocation = response.headers['location'];
+        if (newLocation != null) {
+          // Jika ada lokasi baru, kirim ulang request ke sana
+          url = Uri.parse(newLocation);
+          request =
+              http.Request('POST', url)
+                ..headers.addAll(headers)
+                ..body = body;
+          final redirectedResponseStream = await client.send(request);
+          response = await http.Response.fromStream(redirectedResponseStream);
+        } else {
+          return (
+            false,
+            'Server melakukan redirect (302) tetapi tidak memberikan lokasi baru.',
+          );
+        }
+      }
+
+      client.close();
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        // print(
-        //   'BERHASIL: Transaksi #${transaksi.nomorTransaksi} terkirim ke server.',
-        // );
-        return true;
+        return (true, null); // Berhasil
       } else {
-        // print(
-        //   'GAGAL: Transaksi #${transaksi.nomorTransaksi}. Status: ${response.statusCode}, Body: ${response.body}',
-        // );
-        return false;
+        return (false, 'Server Error ${response.statusCode}: ${response.body}');
       }
     } on SocketException {
-      // print(
-      //   'GAGAL: Transaksi #${transaksi.nomorTransaksi}: Tidak ada koneksi internet atau server tidak ditemukan.',
-      // );
-      return false;
+      return (false, 'Tidak ada koneksi internet.');
     } catch (e) {
-      // print(
-      //   'GAGAL: Transaksi #${transaksi.nomorTransaksi}: Terjadi error -> $e',
-      // );
-      return false;
+      return (false, 'Terjadi error tak terduga: $e');
     }
   }
 
   Future<SyncResult> sinkronkanTransaksiTertunda() async {
     int failureCount = 0;
+    final List<String> errorMessages = [];
     final db = await DatabaseInstance.database;
     final unsyncedList = await db.transaksiDao.findUnsyncedTransactions();
 
     if (unsyncedList.isEmpty) {
-      await SyncManager.setLastSyncTime(); // Tetap update waktu sync
-      return SyncResult(hasUnsyncedData: false, failureCount: 0);
+      await SyncManager.setLastSyncTime();
+      return SyncResult(
+        hasUnsyncedData: false,
+        failureCount: 0,
+        errorMessages: [],
+      );
     }
 
     final allProduk = await db.produkDao.findAllProduk();
@@ -104,7 +135,7 @@ class ApiService {
             );
           }).toList();
 
-      final isSuccess = await kirimTransaksi(trx, items);
+      final (isSuccess, errorMessage) = await kirimTransaksi(trx, items);
 
       if (isSuccess) {
         final syncedTrx = Transaksi(
@@ -127,28 +158,34 @@ class ApiService {
         await db.transaksiDao.updateTransaksi(syncedTrx);
       } else {
         failureCount++;
+        errorMessages.add(
+          'Transaksi #${trx.nomorTransaksi ?? trx.id}: ${errorMessage ?? "Gagal tanpa pesan"}',
+        );
       }
     }
     await SyncManager.setLastSyncTime();
-    return SyncResult(hasUnsyncedData: true, failureCount: failureCount);
+
+    return SyncResult(
+      hasUnsyncedData: true,
+      failureCount: failureCount,
+      errorMessages: errorMessages,
+    );
   }
 
   Stream<String> ambilDanSimpanTransaksiDariWeb() async* {
     final db = await DatabaseInstance.database;
     int newTransactionCount = 0;
     int currentPage = 1;
-    int? totalPages; // Untuk menyimpan info total halaman dari Laravel
+    int? totalPages;
 
     try {
       yield "Mempersiapkan data lokal...";
 
-      // OPTIMASI 1: Cache Peta Produk
       final allProdukList = await db.produkDao.findAllProduk();
       final Map<String, Produk> produkMapByName = {
         for (var p in allProdukList) p.nama: p,
       };
 
-      // OPTIMASI 2: Cache Set Nomor Transaksi Lokal
       final allLocalTrx = await db.transaksiDao.findAllTransaksi();
       final Set<String?> existingNomorSet =
           allLocalTrx.map((t) => t.nomorTransaksi).toSet();
@@ -174,19 +211,16 @@ class ApiService {
         );
 
         if (response.statusCode != 200) {
-          // Gagal, hentikan stream dengan error
           yield "ERROR: Gagal mengambil data. Status: ${response.statusCode}";
-          return; // Hentikan fungsi
+          return;
         }
 
         final Map<String, dynamic> responseData = json.decode(response.body);
         final List<dynamic> pageData = responseData['data'] as List<dynamic>;
 
-        // Ambil info total halaman saat pertama kali loop
         totalPages ??= responseData['last_page'] as int?;
 
         if (pageData.isEmpty) {
-          // Data habis, loop selesai
           break;
         }
 
@@ -201,7 +235,8 @@ class ApiService {
               nomorTransaksi: nomorTransaksiServer,
               waktuTransaksi: DateTime.parse(trxData['waktu_transaksi']),
               diskon: trxData['diskon'] ?? 0,
-              ppnPersentase: trxData['ppn_persentase'] ?? 11.0,
+              ppnPersentase:
+                  (trxData['ppn_persentase'] as num?)?.toDouble() ?? 11.0,
               subtotal: trxData['subtotal'],
               ppnJumlah: trxData['ppn_jumlah'],
               grandTotal: trxData['grand_total'],
@@ -219,13 +254,33 @@ class ApiService {
 
             final List<dynamic> itemsData = trxData['items'];
             for (var itemData in itemsData) {
-              final produk = produkMapByName[itemData['nama_produk']];
+              var produk = produkMapByName[itemData['nama_produk']];
+
+              if (produk == null) {
+                final newProduk = Produk(
+                  nama: itemData['nama_produk'],
+                  harga: itemData['harga_satuan'],
+                  kategoriId: itemData['kategori_id'] ?? 0,
+                );
+                final newProdukId = await db.produkDao.insertProduk(newProduk);
+                if (newProdukId != null) {
+                  produk = Produk(
+                    id: newProdukId,
+                    nama: newProduk.nama,
+                    harga: newProduk.harga,
+                    kategoriId: newProduk.kategoriId,
+                  );
+                  produkMapByName[produk.nama] = produk;
+                }
+              }
+
               if (produk != null) {
                 final detail = DetailTransaksi(
                   transaksiId: newId,
                   produkId: produk.id!,
                   kuantitas: itemData['kuantitas'],
                   hargaSaatTransaksi: itemData['harga_satuan'],
+                  namaProduk: itemData['nama_produk'],
                 );
                 await db.detailTransaksiDao.insertDetailTransaksi(detail);
               }
@@ -237,7 +292,9 @@ class ApiService {
 
         newTransactionCount += countDiHalamanIni;
         currentPage++;
-      } // Akhir While Loop
+      }
+
+      await SyncManager.setLastSyncTime();
 
       if (newTransactionCount == 0) {
         yield "Selesai. Tidak ada data baru yang diunduh.";
@@ -245,8 +302,22 @@ class ApiService {
         yield "Selesai. Total $newTransactionCount transaksi baru berhasil diunduh.";
       }
     } catch (e) {
-      // Kirim pesan error sebagai data terakhir di stream
       yield "ERROR (Halaman $currentPage): ${e.toString()}";
+    }
+  }
+
+  Future<bool> hapusTransaksiDiServer(String nomorTransaksi) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/transaksi/$nomorTransaksi');
+    try {
+      final response = await http.delete(
+        url,
+        headers: {'Accept': 'application/json', 'X-Api-Key': ApiConfig.apiKey},
+      );
+      // Berhasil jika status 200 (OK) atau 404 (sudah terhapus di server)
+      return response.statusCode == 200 || response.statusCode == 404;
+    } catch (e) {
+      // Gagal karena masalah koneksi
+      return false;
     }
   }
 }

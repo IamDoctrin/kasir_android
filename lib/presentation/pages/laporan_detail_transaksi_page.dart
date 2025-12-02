@@ -8,6 +8,7 @@ import 'package:printing/printing.dart';
 import '../../data/database_instance.dart';
 import '../../data/entities/transaksi.dart';
 import '../../data/models/cart_item.dart';
+import '../../data/entities/produk.dart';
 
 class TransactionWithDetails {
   final Transaksi transaction;
@@ -107,11 +108,20 @@ class _LaporanDetailTransaksiPageState
       );
       final items =
           details.map((d) {
+            final existingProduk = produkMap[d.produkId];
             return CartItem(
-              produk: produkMap[d.produkId]!,
+              produk:
+                  existingProduk ??
+                  Produk(
+                    id: d.produkId,
+                    nama: d.namaProduk,
+                    harga: d.hargaSaatTransaksi,
+                    kategoriId: 0,
+                  ),
               kuantitas: d.kuantitas,
             );
           }).toList();
+
       detailedList.add(TransactionWithDetails(transaction: trx, items: items));
     }
     return detailedList.reversed.toList();
